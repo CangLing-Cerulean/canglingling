@@ -73,6 +73,25 @@
             to { transform: rotate(360deg); }
         }
 
+        /* 错误提示 */
+        .error-message {
+            background: #fff5f5;
+            border: 1px solid #fc8181;
+            color: #c53030;
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .error-message code {
+            background: #fed7d7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
         /* 管理按钮 */
         .admin-bar {
             position: fixed;
@@ -555,6 +574,7 @@
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
         <p style="margin-top:20px;color:#667eea;font-weight:500;">正在同步数据...</p>
+        <p id="loadingStatus" style="margin-top:10px;color:#718096;font-size:13px;">初始化中</p>
     </div>
 
     <!-- 管理按钮 -->
@@ -628,66 +648,85 @@
     </div>
 
     <script>
-        // ========== 配置 ==========
-        const CONFIG = {
-            OWNER: 'CangLing-Cerulean',
-            REPO: 'canglingling.github.io',
-            TOKEN: 'TOKEN_PLACEHOLDER',  // ← 这里会被 Actions 自动替换
-            ADMIN_PASSWORD: 'cangling123',
-            LABEL_CARDS: 'data-cards',
-            LABEL_GALLERY: 'data-gallery',
-            LABEL_COMMENTS: 'data-comments'
-        };
+        // ========== 调试模式 ==========
+        const DEBUG = true;
+        function log(...args) {
+            if (DEBUG) console.log('[沧翎翎]', ...args);
+        }
 
-            
-            // 数据标签（用于分类 Issues）
-            LABEL_CARDS: 'data-cards',
-            LABEL_GALLERY: 'data-gallery',
-            LABEL_COMMENTS: 'data-comments'
-        };
+        // ========== 配置 ==========
+        let CONFIG;
+        try {
+            CONFIG = {
+                OWNER: 'CangLing-Cerulean',
+                REPO: 'canglingling',           // ← 新仓库名
+                TOKEN: 'TOKEN_PLACEHOLDER',
+                ADMIN_PASSWORD: 'cangling',     // ← 密码是 cangling
+                LABEL_CARDS: 'data-cards',
+                LABEL_GALLERY: 'data-gallery',
+                LABEL_COMMENTS: 'data-comments'
+            };
+            log('CONFIG 创建成功', CONFIG);
+        } catch (e) {
+            console.error('CONFIG 创建失败:', e);
+        }
 
         // ========== 状态 ==========
         let isAdmin = false;
         let cards = [];
         let gallery = [];
         let comments = [];
-        let isLoading = true;
 
         // ========== GitHub API 封装 ==========
         const GitHubAPI = {
-            // 获取 Issues
             async getIssues(label) {
                 const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues?labels=${label}&state=all&per_page=100`;
-                const response = await fetch(url);
-                if (!response.ok) throw new Error('获取数据失败');
+                log('GET', url);
+                const response = await fetch(url, {
+                    headers: CONFIG.TOKEN && CONFIG.TOKEN !== 'TOKEN_PLACEHOLDER' ? {
+                        'Authorization': `token ${CONFIG.TOKEN}`
+                    } : {}
+                });
+                if (!response.ok) {
+                    const err = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${err}`);
+                }
                 return await response.json();
             },
 
-            // 创建 Issue
             async createIssue(title, body, labels) {
+                if (!CONFIG.TOKEN || CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
+                    throw new Error('Token 未配置，无法写入数据');
+                }
                 const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues`;
+                log('POST', url, { title, labels });
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
                         'Accept': 'application/vnd.github.v3+json',
                         'Content-Type': 'application/json',
-                        ...(CONFIG.TOKEN ? { 'Authorization': `token ${CONFIG.TOKEN}` } : {})
+                        'Authorization': `token ${CONFIG.TOKEN}`
                     },
                     body: JSON.stringify({ title, body, labels })
                 });
-                if (!response.ok) throw new Error('创建失败');
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.message || `HTTP ${response.status}`);
+                }
                 return await response.json();
             },
 
-            // 更新 Issue
             async updateIssue(number, title, body) {
+                if (!CONFIG.TOKEN || CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
+                    throw new Error('Token 未配置，无法更新数据');
+                }
                 const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues/${number}`;
                 const response = await fetch(url, {
                     method: 'PATCH',
                     headers: {
                         'Accept': 'application/vnd.github.v3+json',
                         'Content-Type': 'application/json',
-                        ...(CONFIG.TOKEN ? { 'Authorization': `token ${CONFIG.TOKEN}` } : {})
+                        'Authorization': `token ${CONFIG.TOKEN}`
                     },
                     body: JSON.stringify({ title, body })
                 });
@@ -695,15 +734,17 @@
                 return await response.json();
             },
 
-            // 关闭 Issue（软删除）
             async closeIssue(number) {
+                if (!CONFIG.TOKEN || CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
+                    throw new Error('Token 未配置，无法删除数据');
+                }
                 const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues/${number}`;
                 const response = await fetch(url, {
                     method: 'PATCH',
                     headers: {
                         'Accept': 'application/vnd.github.v3+json',
                         'Content-Type': 'application/json',
-                        ...(CONFIG.TOKEN ? { 'Authorization': `token ${CONFIG.TOKEN}` } : {})
+                        'Authorization': `token ${CONFIG.TOKEN}`
                     },
                     body: JSON.stringify({ state: 'closed' })
                 });
@@ -714,19 +755,45 @@
 
         // ========== 初始化 ==========
         async function init() {
-            showLoading();
+            updateStatus('正在检查配置...');
+            
+            // 检查 Token 是否注入
+            if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
+                updateStatus('⚠️ Token 未注入，使用本地模式');
+                log('Token 未注入');
+            } else {
+                updateStatus('Token 已配置，正在连接 GitHub...');
+                log('Token 已配置');
+            }
+
             try {
                 await loadAllData();
                 renderAll();
                 hideLoading();
             } catch (error) {
                 console.error('初始化失败:', error);
-                // 降级到本地存储
+                updateStatus('云端同步失败: ' + error.message);
+                
+                // 显示错误信息
+                showError('云端同步失败，已切换到本地模式。错误: ' + error.message);
+                
                 loadFromLocal();
                 renderAll();
                 hideLoading();
-                showToast('⚠️ 云端同步失败，已使用本地数据');
             }
+        }
+
+        function updateStatus(text) {
+            const el = document.getElementById('loadingStatus');
+            if (el) el.textContent = text;
+        }
+
+        function showError(message) {
+            const container = document.querySelector('.container');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.innerHTML = message;
+            container.insertBefore(errorDiv, container.firstChild);
         }
 
         function showLoading() {
@@ -739,62 +806,67 @@
 
         // ========== 数据加载 ==========
         async function loadAllData() {
-            // 加载信息栏
-            try {
-                const cardIssues = await GitHubAPI.getIssues(CONFIG.LABEL_CARDS);
-                cards = cardIssues
-                    .filter(issue => issue.state === 'open')
-                    .map(issue => ({
-                        id: issue.number,
-                        title: issue.title,
-                        content: issue.body || '',
-                        issueNumber: issue.number
-                    }));
-            } catch (e) {
-                console.log('信息栏加载失败，使用默认');
+            // 如果有 Token，尝试从 GitHub 加载
+            if (CONFIG.TOKEN !== 'TOKEN_PLACEHOLDER') {
+                try {
+                    const cardIssues = await GitHubAPI.getIssues(CONFIG.LABEL_CARDS);
+                    cards = cardIssues
+                        .filter(issue => issue.state === 'open')
+                        .map(issue => ({
+                            id: issue.number,
+                            title: issue.title,
+                            content: issue.body || '',
+                            issueNumber: issue.number
+                        }));
+                    log('从 GitHub 加载了', cards.length, '个卡片');
+                } catch (e) {
+                    log('GitHub 卡片加载失败:', e.message);
+                }
+
+                try {
+                    const galleryIssues = await GitHubAPI.getIssues(CONFIG.LABEL_GALLERY);
+                    gallery = galleryIssues
+                        .filter(issue => issue.state === 'open')
+                        .map(issue => ({
+                            url: issue.body,
+                            issueNumber: issue.number
+                        }))
+                        .filter(item => item.url);
+                    log('从 GitHub 加载了', gallery.length, '张图片');
+                } catch (e) {
+                    log('GitHub 图片加载失败:', e.message);
+                }
+
+                try {
+                    const commentIssues = await GitHubAPI.getIssues(CONFIG.LABEL_COMMENTS);
+                    comments = commentIssues
+                        .filter(issue => issue.state === 'open')
+                        .map(issue => {
+                            try {
+                                const data = JSON.parse(issue.body);
+                                return {
+                                    name: data.name,
+                                    text: data.text,
+                                    time: data.time,
+                                    issueNumber: issue.number
+                                };
+                            } catch {
+                                return null;
+                            }
+                        })
+                        .filter(Boolean);
+                    log('从 GitHub 加载了', comments.length, '条评论');
+                } catch (e) {
+                    log('GitHub 评论加载失败:', e.message);
+                }
+            }
+
+            // 如果没有数据，使用默认值
+            if (cards.length === 0) {
                 cards = getDefaultCards();
+                log('使用默认卡片');
             }
 
-            // 加载图片
-            try {
-                const galleryIssues = await GitHubAPI.getIssues(CONFIG.LABEL_GALLERY);
-                gallery = galleryIssues
-                    .filter(issue => issue.state === 'open')
-                    .map(issue => ({
-                        url: issue.body,
-                        issueNumber: issue.number
-                    }))
-                    .filter(item => item.url);
-            } catch (e) {
-                console.log('图片加载失败');
-                gallery = [];
-            }
-
-            // 加载评论
-            try {
-                const commentIssues = await GitHubAPI.getIssues(CONFIG.LABEL_COMMENTS);
-                comments = commentIssues
-                    .filter(issue => issue.state === 'open')
-                    .map(issue => {
-                        try {
-                            const data = JSON.parse(issue.body);
-                            return {
-                                name: data.name,
-                                text: data.text,
-                                time: data.time,
-                                issueNumber: issue.number
-                            };
-                        } catch {
-                            return null;
-                        }
-                    })
-                    .filter(Boolean);
-            } catch (e) {
-                console.log('评论加载失败');
-                comments = [];
-            }
-
-            // 保存到本地作为缓存
             saveToLocal();
         }
 
@@ -807,7 +879,6 @@
             ];
         }
 
-        // ========== 本地存储（降级/缓存） ==========
         function saveToLocal() {
             localStorage.setItem('cangling_cache', JSON.stringify({ cards, gallery, comments }));
         }
@@ -846,6 +917,11 @@
                 closeModal();
                 renderAll();
                 showToast('✅ 管理员模式已开启');
+                
+                // 检查 Token 状态
+                if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
+                    showToast('⚠️ Token 未配置，无法保存到云端');
+                }
             } else {
                 showToast('❌ 密码错误');
                 document.getElementById('passwordInput').value = '';
@@ -899,10 +975,13 @@
             if (!isAdmin) return;
             
             try {
-                // 如果没有 issueNumber（本地默认数据），需要创建新 Issue
                 if (!number || number <= 4) {
+                    // 默认卡片需要创建新 Issue
+                    if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
+                        showToast('❌ Token 未配置，无法保存到云端');
+                        return;
+                    }
                     const issue = await GitHubAPI.createIssue(title, content, [CONFIG.LABEL_CARDS]);
-                    // 刷新数据
                     await loadAllData();
                     renderCards();
                     showToast('已保存到云端');
@@ -924,14 +1003,17 @@
 
             try {
                 if (number > 4) {
+                    if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
+                        showToast('❌ Token 未配置，无法删除');
+                        return;
+                    }
                     await GitHubAPI.closeIssue(number);
                 }
-                // 刷新数据
                 await loadAllData();
                 renderCards();
                 showToast('已删除');
             } catch (error) {
-                showToast('❌ 删除失败');
+                showToast('❌ 删除失败: ' + error.message);
             }
         }
 
@@ -947,6 +1029,11 @@
             
             if (!title || !content) {
                 showToast('请填写标题和内容');
+                return;
+            }
+
+            if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
+                showToast('❌ Token 未配置，无法添加');
                 return;
             }
 
@@ -968,7 +1055,7 @@
             
             grid.innerHTML = '';
             
-            gallery.forEach((item, index) => {
+            gallery.forEach((item) => {
                 const div = document.createElement('div');
                 div.className = 'gallery-item';
                 div.innerHTML = `
@@ -985,6 +1072,11 @@
             const files = event.target.files;
             if (!files.length) return;
 
+            if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
+                showToast('❌ Token 未配置，无法上传');
+                return;
+            }
+
             for (const file of Array.from(files)) {
                 if (!file.type.startsWith('image/')) continue;
                 
@@ -999,7 +1091,7 @@
                         renderGallery();
                         showToast('图片上传成功');
                     } catch (err) {
-                        showToast('❌ 上传失败');
+                        showToast('❌ 上传失败: ' + err.message);
                     }
                 };
                 reader.readAsDataURL(file);
@@ -1011,6 +1103,11 @@
         async function deleteImage(number, event) {
             event.stopPropagation();
             if (!confirm('确定删除这张图片？')) return;
+
+            if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
+                showToast('❌ Token 未配置，无法删除');
+                return;
+            }
 
             try {
                 await GitHubAPI.closeIssue(number);
@@ -1064,6 +1161,11 @@
                 return;
             }
 
+            if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
+                showToast('❌ Token 未配置，无法留言');
+                return;
+            }
+
             const data = {
                 name: name,
                 text: text,
@@ -1091,6 +1193,11 @@
         async function deleteComment(number) {
             if (!isAdmin) return;
             if (!confirm('确定删除这条留言？')) return;
+
+            if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
+                showToast('❌ Token 未配置，无法删除');
+                return;
+            }
 
             try {
                 await GitHubAPI.closeIssue(number);
@@ -1162,8 +1269,11 @@
         });
 
         // 启动
+        log('开始初始化...');
         init();
     </script>
 </body>
+</html>
+
 </html>
 
