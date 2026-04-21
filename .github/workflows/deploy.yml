@@ -1,1 +1,57 @@
 
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Inject Token
+        run: |
+          # 使用 Python 进行安全替换，避免 sed 的特殊字符问题
+          python3 << 'EOF'
+          import os
+          import re
+
+          token = os.environ.get('GH_TOKEN', 'TOKEN_PLACEHOLDER')
+          with open('index.html', 'r', encoding='utf-8') as f:
+              content = f.read()
+          
+          # 安全替换，不使用正则
+          content = content.replace('TOKEN_PLACEHOLDER', token)
+          
+          with open('index.html', 'w', encoding='utf-8') as f:
+              f.write(content)
+          
+          # 验证替换成功
+          if 'TOKEN_PLACEHOLDER' in content:
+              print("ERROR: Token injection failed!")
+              exit(1)
+          else:
+              print("Token injected successfully")
+          EOF
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
