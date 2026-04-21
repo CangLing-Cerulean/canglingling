@@ -30,16 +30,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
-      - name: Verify Token Injection
+      - name: Verify Token
         run: |
-          echo "Checking index.html for Token..."
           if grep -q "TOKEN_PLACEHOLDER" index.html; then
-            echo "ERROR: Token injection FAILED!"
+            echo "ERROR: Token injection failed!"
             exit 1
           else
             echo "SUCCESS: Token injected"
-            # 显示 Token 前10位（调试用，确认注入成功）
-            grep -o 'ghp_[a-zA-Z0-9]*' index.html | head -1 | cut -c1-15
           fi
 
       - name: Setup Pages
