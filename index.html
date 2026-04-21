@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>沧翎翎的小窝</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
+            min-height: 100vh;
+            color: #2d3748;
+            overflow-x: hidden;
+        }
+
+        /* 背景装饰 */
+        .bg-decoration {
+            position: fixed;
+            top: -50%;
+            right: -20%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255,255,255,0.4) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 80px 20px 60px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 标题区域 */
+        .hero {
+            margin-bottom: 60px;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .hero h1 {
+            font-size: 44px;
+            font-weight: 800;
+            color: #1a202c;
+            line-height: 1.3;
+            margin-bottom: 10px;
+            letter-spacing: -0.5px;
+        }
+
+        .hero h2 {
+            font-size: 44px;
+            font-weight: 800;
+            color: #1a202c;
+            line-height: 1.3;
+            letter-spacing: -0.5px;
+        }
+
+        /* 卡片样式 */
+        .card {
+            background: rgba(255, 255, 255, 0.82);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 20px;
+            padding: 32px 36px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: fadeInUp 0.8s ease-out backwards;
+        }
+
+        .card:nth-child(2) { animation-delay: 0.1s; }
+        .card:nth-child(3) { animation-delay: 0.2s; }
+        .card:nth-child(4) { animation-delay: 0.3s; }
+        .card:nth-child(5) { animation-delay: 0.4s; }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.92);
+        }
+
+        .card h3 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card h3::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 22px;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            border-radius: 3px;
+        }
+
+        .card p {
+            font-size: 16px;
+            line-height: 1.9;
+            color: #4a5568;
+        }
+
+        /* 页脚 */
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding: 20px;
+            color: #718096;
+            font-size: 14px;
+            animation: fadeIn 1.2s ease-out;
+        }
+
+        /* 动画 */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* 响应式 */
+        @media (max-width: 640px) {
+            .container {
+                padding: 50px 16px 40px;
+            }
+            
+            .hero h1, .hero h2 {
+                font-size: 32px;
+            }
+            
+            .card {
+                padding: 24px 22px;
+                border-radius: 16px;
+            }
+            
+            .card h3 {
+                font-size: 19px;
+            }
+            
+            .card p {
+                font-size: 15px;
+                line-height: 1.8;
+            }
+        }
+
+        /* 深色模式支持 */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: linear-gradient(135deg, #1a1f2e 0%, #16213e 100%);
+                color: #e2e8f0;
+            }
+            
+            .hero h1, .hero h2 {
+                color: #f7fafc;
+            }
+            
+            .card {
+                background: rgba(30, 41, 59, 0.8);
+                border-color: rgba(255, 255, 255, 0.08);
+            }
+            
+            .card:hover {
+                background: rgba(30, 41, 59, 0.9);
+            }
+            
+            .card h3 {
+                color: #f7fafc;
+            }
+            
+            .card p {
+                color: #a0aec0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-decoration"></div>
+    
+    <div class="container">
+        <div class="hero">
+            <h1>嗨嗨！你好嗷~</h1>
+            <h2>欢迎你发现了这里</h2>
+        </div>
+
+        <div class="card">
+            <h3>这是什么地方？</h3>
+            <p>这里是沧翎翎的秘密基地，目前主要是展示一些瞎搞的信息。不打算自我解释，觉得没什么内容能写进去，可能以后就会改变主意了呢？</p>
+        </div>
+
+        <div class="card">
+            <h3>沧翎翎是什么？</h3>
+            <p>沧翎翎是拥有这个网站的小兽太，专注于研究自动化、通用时域模型相关的内容，其实什么都不懂。还是一位福瑞控，最喜欢可爱的小兽太了！</p>
+        </div>
+
+        <div class="card">
+            <h3>何时才能做完？</h3>
+            <p>沧翎翎不会写代码，不懂得如何设计界面，也不善于表达内容，可能永远也做不完！</p>
+        </div>
+
+        <div class="card">
+            <h3>想认识沧翎翎？</h3>
+            <p>沧翎翎是超级大社恐，并且只想认识小兽太。目前不会在这里写联系方式，想认识的话就去寻找相关线索啦。</p>
+        </div>
+
+        <div class="footer">
+            <p>© 沧翎翎的小窝 · 永远做不完的网站</p>
+        </div>
+    </div>
+</body>
+</html>
