@@ -58,7 +58,7 @@
         }
 
         .loading-overlay.hidden {
-            display: none; /* 彻底隐藏，不遮挡内容 */
+            display: none;
         }
 
         .spinner {
@@ -815,20 +815,35 @@
             });
         }
 
-        // 核心修复：确保 init 正确执行
+        // 核心修复：轮询等待 Token 注入
+        async function waitForToken() {
+            let attempts = 0;
+            const maxAttempts = 50; // 最多等 5 秒
+            
+            while (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER' && attempts < maxAttempts) {
+                await new Promise(r => setTimeout(r, 100));
+                attempts++;
+            }
+            
+            console.log('Token wait result:', CONFIG.TOKEN.substring(0, 15), 'after', attempts, 'attempts');
+            return CONFIG.TOKEN !== 'TOKEN_PLACEHOLDER';
+        }
+
         async function init() {
             console.log('=== INIT START ===');
+            
+            // 等待 Token 注入
+            const tokenReady = await waitForToken();
+            console.log('Token ready:', tokenReady);
+            console.log('Token value:', CONFIG.TOKEN.substring(0, 15));
             
             // 清空旧数据
             cards = [];
             gallery = [];
             comments = [];
             
-            const hasToken = CONFIG.TOKEN && 
-                             CONFIG.TOKEN !== 'TOKEN_PLACEHOLDER' && 
-                             CONFIG.TOKEN.startsWith('ghp_');
-            
-            console.log('Token valid:', hasToken);
+            const hasToken = CONFIG.TOKEN !== 'TOKEN_PLACEHOLDER' && CONFIG.TOKEN.length > 20;
+            console.log('Has valid token:', hasToken);
             
             if (hasToken) {
                 updateStatus('同步云端数据...');
@@ -838,7 +853,6 @@
                     console.log('Loaded cards:', cards.length);
                 } catch (error) {
                     console.error('GitHub error:', error);
-                    // 失败时尝试本地缓存
                     loadFromLocal();
                 }
             } else {
@@ -846,14 +860,10 @@
                 loadFromLocal();
             }
             
-            // 关键：无论成功失败，都渲染
             console.log('Before render, cards:', cards.length);
             renderAll();
-            
-            // 保存到本地（作为备份）
             saveToLocal();
             
-            // 延迟隐藏加载动画
             setTimeout(() => {
                 hideLoading();
                 console.log('=== INIT END ===');
@@ -941,7 +951,6 @@
                 hasError = true;
             }
 
-            // 按 order 排序
             cards.sort((a, b) => {
                 const orderA = (a.content.match(/<!-- order:(\d+) -->/) || [0, 999])[1];
                 const orderB = (b.content.match(/<!-- order:(\d+) -->/) || [0, 999])[1];
@@ -1011,7 +1020,6 @@
             document.getElementById('passwordInput').value = '';
         }
 
-        // 拖拽排序
         function initDragEvents(cardEl, card) {
             cardEl.draggable = true;
             
@@ -1391,11 +1399,13 @@
             handleUpload({ target: { files } });
         });
 
-        // 确保 DOM 完全加载后再执行
+        // 启动：等待 DOM 和 Token
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(init, 100);
+            });
         } else {
-            init();
+            setTimeout(init, 100);
         }
     </script>
 </body>
