@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>沧翎翎的小窝</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <style>
         * {
             margin: 0;
@@ -558,13 +561,13 @@
     </div>
 
     <div class="admin-bar">
-        <button class="btn btn-secondary" id="adminBtn" onclick="toggleAdmin()">🔒 管理员</button>
+        <button class="btn btn-secondary" id="adminBtn" onclick="toggleAdmin()">🐾 沧翎</button>
     </div>
 
     <div class="modal-overlay" id="loginModal">
         <div class="modal">
-            <h3>🔐 管理员验证</h3>
-            <input type="password" id="passwordInput" placeholder="请输入管理员密码" onkeypress="if(event.key==='Enter')login()">
+            <h3>🔐 验证身份</h3>
+            <input type="password" id="passwordInput" placeholder="请输入密码" onkeypress="if(event.key==='Enter')login()">
             <div class="btn-group">
                 <button class="btn btn-secondary" onclick="closeModal()">取消</button>
                 <button class="btn btn-primary" onclick="login()">确认</button>
@@ -622,7 +625,6 @@
     </div>
 
     <script>
-        // ========== 配置（全局唯一） ==========
         const CONFIG = {
             OWNER: 'CangLing-Cerulean',
             REPO: 'canglingling',
@@ -633,32 +635,24 @@
             LABEL_COMMENTS: 'data-comments'
         };
 
-        // 挂载到 window，确保全局可访问
-        window.CONFIG = CONFIG;
-
-        // ========== 状态 ==========
         let isAdmin = false;
         let cards = [];
         let gallery = [];
         let comments = [];
 
-        // ========== GitHub API 封装 ==========
         const GitHubAPI = {
             async getIssues(label) {
                 const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues?labels=${label}&state=all&per_page=100`;
                 const response = await fetch(url, {
-                    headers: CONFIG.TOKEN !== 'TOKEN_PLACEHOLDER' ? {
+                    headers: {
                         'Authorization': `token ${CONFIG.TOKEN}`
-                    } : {}
+                    }
                 });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 return await response.json();
             },
 
             async createIssue(title, body, labels) {
-                if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
-                    throw new Error('Token 未配置，无法写入数据');
-                }
                 const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues`;
                 const response = await fetch(url, {
                     method: 'POST',
@@ -677,9 +671,6 @@
             },
 
             async updateIssue(number, title, body) {
-                if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
-                    throw new Error('Token 未配置，无法更新数据');
-                }
                 const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues/${number}`;
                 const response = await fetch(url, {
                     method: 'PATCH',
@@ -695,9 +686,6 @@
             },
 
             async closeIssue(number) {
-                if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
-                    throw new Error('Token 未配置，无法删除数据');
-                }
                 const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues/${number}`;
                 const response = await fetch(url, {
                     method: 'PATCH',
@@ -713,16 +701,8 @@
             }
         };
 
-        // ========== 初始化 ==========
         async function init() {
-            updateStatus('检查配置...');
-            
-            if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
-                updateStatus('⚠️ Token 未注入，使用本地模式');
-            } else {
-                updateStatus('✅ Token 已配置，连接 GitHub...');
-            }
-
+            updateStatus('连接 GitHub...');
             try {
                 await loadAllData();
                 renderAll();
@@ -757,57 +737,54 @@
             document.getElementById('loadingOverlay').classList.add('hidden');
         }
 
-        // ========== 数据加载 ==========
         async function loadAllData() {
-            if (CONFIG.TOKEN !== 'TOKEN_PLACEHOLDER') {
-                try {
-                    const cardIssues = await GitHubAPI.getIssues(CONFIG.LABEL_CARDS);
-                    cards = cardIssues
-                        .filter(issue => issue.state === 'open')
-                        .map(issue => ({
-                            id: issue.number,
-                            title: issue.title,
-                            content: issue.body || '',
-                            issueNumber: issue.number
-                        }));
-                } catch (e) {
-                    console.log('GitHub 卡片加载失败:', e.message);
-                }
+            try {
+                const cardIssues = await GitHubAPI.getIssues(CONFIG.LABEL_CARDS);
+                cards = cardIssues
+                    .filter(issue => issue.state === 'open')
+                    .map(issue => ({
+                        id: issue.number,
+                        title: issue.title,
+                        content: issue.body || '',
+                        issueNumber: issue.number
+                    }));
+            } catch (e) {
+                console.log('GitHub 卡片加载失败:', e.message);
+            }
 
-                try {
-                    const galleryIssues = await GitHubAPI.getIssues(CONFIG.LABEL_GALLERY);
-                    gallery = galleryIssues
-                        .filter(issue => issue.state === 'open')
-                        .map(issue => ({
-                            url: issue.body,
-                            issueNumber: issue.number
-                        }))
-                        .filter(item => item.url);
-                } catch (e) {
-                    console.log('GitHub 图片加载失败:', e.message);
-                }
+            try {
+                const galleryIssues = await GitHubAPI.getIssues(CONFIG.LABEL_GALLERY);
+                gallery = galleryIssues
+                    .filter(issue => issue.state === 'open')
+                    .map(issue => ({
+                        url: issue.body,
+                        issueNumber: issue.number
+                    }))
+                    .filter(item => item.url);
+            } catch (e) {
+                console.log('GitHub 图片加载失败:', e.message);
+            }
 
-                try {
-                    const commentIssues = await GitHubAPI.getIssues(CONFIG.LABEL_COMMENTS);
-                    comments = commentIssues
-                        .filter(issue => issue.state === 'open')
-                        .map(issue => {
-                            try {
-                                const data = JSON.parse(issue.body);
-                                return {
-                                    name: data.name,
-                                    text: data.text,
-                                    time: data.time,
-                                    issueNumber: issue.number
-                                };
-                            } catch {
-                                return null;
-                            }
-                        })
-                        .filter(Boolean);
-                } catch (e) {
-                    console.log('GitHub 评论加载失败:', e.message);
-                }
+            try {
+                const commentIssues = await GitHubAPI.getIssues(CONFIG.LABEL_COMMENTS);
+                comments = commentIssues
+                    .filter(issue => issue.state === 'open')
+                    .map(issue => {
+                        try {
+                            const data = JSON.parse(issue.body);
+                            return {
+                                name: data.name,
+                                text: data.text,
+                                time: data.time,
+                                issueNumber: issue.number
+                            };
+                        } catch {
+                            return null;
+                        }
+                    })
+                    .filter(Boolean);
+            } catch (e) {
+                console.log('GitHub 评论加载失败:', e.message);
             }
 
             if (cards.length === 0) {
@@ -844,7 +821,6 @@
             }
         }
 
-        // ========== 管理员功能 ==========
         function toggleAdmin() {
             if (isAdmin) {
                 logout();
@@ -858,16 +834,12 @@
             const pwd = document.getElementById('passwordInput').value;
             if (pwd === CONFIG.ADMIN_PASSWORD) {
                 isAdmin = true;
-                document.getElementById('adminBtn').textContent = '🔓 退出管理';
+                document.getElementById('adminBtn').textContent = '🐾 沧翎';
                 document.getElementById('adminBtn').classList.remove('btn-secondary');
                 document.getElementById('adminBtn').classList.add('btn-danger');
                 closeModal();
                 renderAll();
-                showToast('✅ 管理员模式已开启');
-                
-                if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
-                    showToast('⚠️ Token 未配置，无法保存到云端');
-                }
+                showToast('✅ 管理模式已开启');
             } else {
                 showToast('❌ 密码错误');
                 document.getElementById('passwordInput').value = '';
@@ -877,7 +849,7 @@
 
         function logout() {
             isAdmin = false;
-            document.getElementById('adminBtn').textContent = '🔒 管理员';
+            document.getElementById('adminBtn').textContent = '🐾 沧翎';
             document.getElementById('adminBtn').classList.remove('btn-danger');
             document.getElementById('adminBtn').classList.add('btn-secondary');
             renderAll();
@@ -889,7 +861,6 @@
             document.getElementById('passwordInput').value = '';
         }
 
-        // ========== 信息栏管理 ==========
         function renderCards() {
             const container = document.getElementById('cardsContainer');
             container.innerHTML = '';
@@ -922,10 +893,6 @@
             
             try {
                 if (!number || number <= 4) {
-                    if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
-                        showToast('❌ Token 未配置，无法保存');
-                        return;
-                    }
                     const issue = await GitHubAPI.createIssue(title, content, [CONFIG.LABEL_CARDS]);
                     await loadAllData();
                     renderCards();
@@ -948,10 +915,6 @@
 
             try {
                 if (number > 4) {
-                    if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
-                        showToast('❌ Token 未配置，无法删除');
-                        return;
-                    }
                     await GitHubAPI.closeIssue(number);
                 }
                 await loadAllData();
@@ -977,11 +940,6 @@
                 return;
             }
 
-            if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
-                showToast('❌ Token 未配置，无法添加');
-                return;
-            }
-
             try {
                 await GitHubAPI.createIssue(title, content, [CONFIG.LABEL_CARDS]);
                 await loadAllData();
@@ -993,7 +951,6 @@
             }
         }
 
-        // ========== 图片展示区 ==========
         function renderGallery() {
             const grid = document.getElementById('galleryGrid');
             const uploadArea = document.getElementById('uploadArea');
@@ -1016,11 +973,6 @@
         async function handleUpload(event) {
             const files = event.target.files;
             if (!files.length) return;
-
-            if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
-                showToast('❌ Token 未配置，无法上传');
-                return;
-            }
 
             for (const file of Array.from(files)) {
                 if (!file.type.startsWith('image/')) continue;
@@ -1049,11 +1001,6 @@
             event.stopPropagation();
             if (!confirm('确定删除这张图片？')) return;
 
-            if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
-                showToast('❌ Token 未配置，无法删除');
-                return;
-            }
-
             try {
                 await GitHubAPI.closeIssue(number);
                 await loadAllData();
@@ -1072,7 +1019,6 @@
             document.body.appendChild(overlay);
         }
 
-        // ========== 评论区 ==========
         function renderComments() {
             const list = document.getElementById('commentsList');
             list.innerHTML = '';
@@ -1106,11 +1052,6 @@
                 return;
             }
 
-            if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
-                showToast('❌ Token 未配置，无法留言');
-                return;
-            }
-
             const data = {
                 name: name,
                 text: text,
@@ -1139,11 +1080,6 @@
             if (!isAdmin) return;
             if (!confirm('确定删除这条留言？')) return;
 
-            if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
-                showToast('❌ Token 未配置，无法删除');
-                return;
-            }
-
             try {
                 await GitHubAPI.closeIssue(number);
                 await loadAllData();
@@ -1154,14 +1090,12 @@
             }
         }
 
-        // ========== 渲染全部 ==========
         function renderAll() {
             renderCards();
             renderGallery();
             renderComments();
         }
 
-        // ========== 工具函数 ==========
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
@@ -1192,14 +1126,12 @@
             }, 2000);
         }
 
-        // 模态框外部点击关闭
         document.querySelectorAll('.modal-overlay').forEach(overlay => {
             overlay.addEventListener('click', (e) => {
                 if (e.target === overlay) overlay.classList.remove('active');
             });
         });
 
-        // 拖拽上传
         const uploadArea = document.getElementById('uploadArea');
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             uploadArea.addEventListener(eventName, (e) => {
@@ -1213,7 +1145,6 @@
             handleUpload({ target: { files } });
         });
 
-        // 启动
         init();
     </script>
 </body>
