@@ -58,8 +58,7 @@
         }
 
         .loading-overlay.hidden {
-            opacity: 0;
-            pointer-events: none;
+            display: none; /* 彻底隐藏，不遮挡内容 */
         }
 
         .spinner {
@@ -733,35 +732,26 @@
                 return await response.json();
             },
 
-            // 上传文件到仓库
             async uploadFile(path, content, message) {
                 const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/contents/${path}`;
                 
-                // 先获取当前文件的 sha（如果存在）
                 let sha = null;
                 try {
                     const getResponse = await fetch(url, {
-                        headers: {
-                            'Authorization': `token ${CONFIG.TOKEN}`
-                        }
+                        headers: { 'Authorization': `token ${CONFIG.TOKEN}` }
                     });
                     if (getResponse.ok) {
                         const data = await getResponse.json();
                         sha = data.sha;
                     }
-                } catch (e) {
-                    // 文件不存在，忽略错误
-                }
+                } catch (e) {}
 
                 const body = {
                     message: message || 'Upload image',
-                    content: content, // Base64 编码的内容
+                    content: content,
                     branch: 'main'
                 };
-                
-                if (sha) {
-                    body.sha = sha;
-                }
+                if (sha) body.sha = sha;
 
                 const response = await fetch(url, {
                     method: 'PUT',
@@ -779,11 +769,10 @@
                 }
                 
                 const data = await response.json();
-                return data.content.download_url; // 返回图片 URL
+                return data.content.download_url;
             }
         };
 
-        // 图片压缩 - 更激进的压缩
         async function compressImage(file, maxWidth = 600, maxHeight = 600, quality = 0.5) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
@@ -792,13 +781,7 @@
                     let width = img.width;
                     let height = img.height;
                     
-                    // 计算缩放比例
-                    const scale = Math.min(
-                        maxWidth / width,
-                        maxHeight / height,
-                        1
-                    );
-                    
+                    const scale = Math.min(maxWidth / width, maxHeight / height, 1);
                     width *= scale;
                     height *= scale;
                     
@@ -807,16 +790,13 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
                     
-                    // 尝试 JPEG 格式，质量 0.5
                     let dataUrl = canvas.toDataURL('image/jpeg', quality);
                     
-                    // 如果还是太大，进一步压缩
                     let attempts = 0;
-                    while (dataUrl.length > 40000 && attempts < 3) { // 限制 40KB
+                    while (dataUrl.length > 40000 && attempts < 3) {
                         quality *= 0.7;
                         maxWidth *= 0.8;
                         maxHeight *= 0.8;
-                        
                         const newCanvas = document.createElement('canvas');
                         newCanvas.width = maxWidth;
                         newCanvas.height = maxHeight;
@@ -835,42 +815,49 @@
             });
         }
 
+        // 核心修复：确保 init 正确执行
         async function init() {
-            updateStatus('加载中...');
+            console.log('=== INIT START ===');
             
-            // 强制从 GitHub 加载，不用本地缓存
+            // 清空旧数据
+            cards = [];
+            gallery = [];
+            comments = [];
+            
             const hasToken = CONFIG.TOKEN && 
                              CONFIG.TOKEN !== 'TOKEN_PLACEHOLDER' && 
                              CONFIG.TOKEN.startsWith('ghp_');
             
+            console.log('Token valid:', hasToken);
+            
             if (hasToken) {
                 updateStatus('同步云端数据...');
                 try {
+                    console.log('Loading from GitHub...');
                     await loadAllData();
-                    renderAll();
-                    saveToLocal(); // 同步完成后保存到本地作为备份
+                    console.log('Loaded cards:', cards.length);
                 } catch (error) {
-                    console.error('云端同步失败:', error);
-                    // 云端失败时尝试本地缓存
+                    console.error('GitHub error:', error);
+                    // 失败时尝试本地缓存
                     loadFromLocal();
-                    renderAll();
-                    
-                    if (cards.length === 0) {
-                        showError('云端同步失败: ' + error.message);
-                    } else {
-                        showToast('⚠️ 使用本地缓存');
-                    }
                 }
             } else {
-                // 无 Token，只能用本地缓存
+                console.log('No token, loading local...');
                 loadFromLocal();
-                renderAll();
-                if (cards.length === 0) {
-                    showError('配置错误，请刷新或联系管理员');
-                }
             }
             
-            hideLoading();
+            // 关键：无论成功失败，都渲染
+            console.log('Before render, cards:', cards.length);
+            renderAll();
+            
+            // 保存到本地（作为备份）
+            saveToLocal();
+            
+            // 延迟隐藏加载动画
+            setTimeout(() => {
+                hideLoading();
+                console.log('=== INIT END ===');
+            }, 300);
         }
 
         function updateStatus(text) {
@@ -889,12 +876,9 @@
             container.insertBefore(errorDiv, container.firstChild);
         }
 
-        function showLoading() {
-            document.getElementById('loadingOverlay').classList.remove('hidden');
-        }
-
         function hideLoading() {
-            document.getElementById('loadingOverlay').classList.add('hidden');
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) overlay.classList.add('hidden');
         }
 
         async function loadAllData() {
@@ -914,8 +898,9 @@
                         content: issue.body || '',
                         issueNumber: issue.number
                     }));
+                console.log('Cards loaded:', cards.length);
             } catch (e) {
-                console.log('GitHub 卡片加载失败:', e.message);
+                console.log('Cards error:', e.message);
                 hasError = true;
             }
 
@@ -929,7 +914,7 @@
                     }))
                     .filter(item => item.url);
             } catch (e) {
-                console.log('GitHub 图片加载失败:', e.message);
+                console.log('Gallery error:', e.message);
                 hasError = true;
             }
 
@@ -952,11 +937,11 @@
                     })
                     .filter(Boolean);
             } catch (e) {
-                console.log('GitHub 评论加载失败:', e.message);
+                console.log('Comments error:', e.message);
                 hasError = true;
             }
 
-            // 按 order 标记排序
+            // 按 order 排序
             cards.sort((a, b) => {
                 const orderA = (a.content.match(/<!-- order:(\d+) -->/) || [0, 999])[1];
                 const orderB = (b.content.match(/<!-- order:(\d+) -->/) || [0, 999])[1];
@@ -980,11 +965,9 @@
                     cards = data.cards || [];
                     gallery = data.gallery || [];
                     comments = data.comments || [];
+                    console.log('Local loaded:', cards.length);
                 } catch (e) {
-                    console.error('解析本地缓存失败:', e);
-                    cards = [];
-                    gallery = [];
-                    comments = [];
+                    console.error('Local parse error:', e);
                 }
             }
         }
@@ -1011,7 +994,6 @@
             } else {
                 showToast('❌ 密码错误');
                 document.getElementById('passwordInput').value = '';
-                document.getElementById('passwordInput').focus();
             }
         }
 
@@ -1067,7 +1049,6 @@
                 
                 if (fromIndex === -1 || toIndex === -1) return;
                 
-                // 移动数组元素
                 cards.splice(fromIndex, 1);
                 cards.splice(toIndex, 0, draggedCard);
                 
@@ -1075,7 +1056,6 @@
                 renderCards();
                 showToast('顺序已更新');
                 
-                // 同步到云端
                 try {
                     for (let i = 0; i < cards.length; i++) {
                         const c = cards[i];
@@ -1091,8 +1071,7 @@
                     }
                     saveToLocal();
                 } catch (err) {
-                    console.error('同步顺序失败:', err);
-                    showToast('⚠️ 本地顺序已保存，云端同步失败');
+                    console.error('Sync order failed:', err);
                 }
             });
         }
@@ -1135,16 +1114,12 @@
             if (!isAdmin) return;
             
             const card = cards.find(c => c.issueNumber === issueNumber);
-            if (!card) {
-                showToast('❌ 找不到卡片');
-                return;
-            }
+            if (!card) return;
             
             const cleanValue = value.replace(/<!-- order:\d+ -->/g, '').trim();
             const newTitle = field === 'title' ? cleanValue : card.title;
             const newContent = field === 'content' ? cleanValue : card.content.replace(/<!-- order:\d+ -->/g, '');
             
-            // 保留 order 标记
             const orderMatch = card.content.match(/<!-- order:(\d+) -->/);
             const orderMarker = orderMatch ? `<!-- order:${orderMatch[1]} -->` : '';
             const finalContent = newContent + (orderMarker ? '\n\n' + orderMarker : '');
@@ -1159,7 +1134,6 @@
                 showToast('已保存');
             } catch (error) {
                 showToast('❌ 保存失败: ' + error.message);
-                console.error('Save error:', error);
             }
         }
 
@@ -1241,42 +1215,22 @@
                 if (!file.type.startsWith('image/')) continue;
                 
                 try {
-                    showToast('正在压缩图片...');
+                    showToast('正在压缩...');
                     const compressed = await compressImage(file);
                     
-                    // 检查大小
-                    const base64Length = compressed.length;
-                    const sizeInKB = Math.round(base64Length * 0.75 / 1024);
-                    console.log('Compressed size:', sizeInKB, 'KB');
-                    
-                    if (sizeInKB > 100) {
-                        showToast(`图片太大 (${sizeInKB}KB)，跳过`);
-                        continue;
-                    }
-                    
-                    showToast('正在上传到 GitHub...');
-                    
-                    // 提取 Base64 内容（去掉 data:image/jpeg;base64, 前缀）
                     const base64Content = compressed.split(',')[1];
-                    
-                    // 生成文件名
                     const ext = file.name.split('.').pop() || 'jpg';
                     const filename = `img_${Date.now()}_${Math.random().toString(36).substr(2, 8)}.${ext}`;
                     const path = `images/${filename}`;
                     
-                    // 上传到仓库
+                    showToast('正在上传...');
                     const imageUrl = await GitHubAPI.uploadFile(path, base64Content, `Upload ${filename}`);
                     
-                    // 创建 Issue 记录
-                    await GitHubAPI.createIssue(
-                        `image_${filename}`,
-                        imageUrl,
-                        [CONFIG.LABEL_GALLERY]
-                    );
+                    await GitHubAPI.createIssue(`image_${filename}`, imageUrl, [CONFIG.LABEL_GALLERY]);
                     
                     await loadAllData();
                     renderGallery();
-                    showToast('图片上传成功');
+                    showToast('上传成功');
                 } catch (err) {
                     showToast('❌ 上传失败: ' + err.message);
                     console.error('Upload error:', err);
@@ -1382,6 +1336,7 @@
         }
 
         function renderAll() {
+            console.log('renderAll called, cards:', cards.length);
             renderCards();
             renderGallery();
             renderComments();
@@ -1436,7 +1391,12 @@
             handleUpload({ target: { files } });
         });
 
-        init();
+        // 确保 DOM 完全加载后再执行
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     </script>
 </body>
 </html>
