@@ -702,6 +702,19 @@
         };
 
         async function init() {
+            updateStatus('检查配置...');
+            
+            // 先加载本地缓存，确保有数据可显示
+            loadFromLocal();
+            
+            if (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER') {
+                updateStatus('⚠️ Token 未配置');
+                renderAll();
+                hideLoading();
+                showError('配置错误，请刷新或联系管理员');
+                return;
+            }
+            
             updateStatus('连接 GitHub...');
             try {
                 await loadAllData();
@@ -709,10 +722,15 @@
                 hideLoading();
             } catch (error) {
                 console.error('初始化失败:', error);
-                showError('云端同步失败: ' + error.message);
-                loadFromLocal();
+                // 已经有本地缓存了，直接渲染
                 renderAll();
                 hideLoading();
+                
+                if (cards.length === 0) {
+                    showError('加载失败: ' + error.message);
+                } else {
+                    showToast('⚠️ 使用本地缓存数据');
+                }
             }
         }
 
@@ -738,63 +756,71 @@
         }
 
         async function loadAllData() {
-            // 清空数组，避免重复
+            // 先清空，避免旧数据残留
             cards = [];
             gallery = [];
             comments = [];
 
-            if (CONFIG.TOKEN !== 'TOKEN_PLACEHOLDER') {
-                try {
-                    const cardIssues = await GitHubAPI.getIssues(CONFIG.LABEL_CARDS);
-                    cards = cardIssues
-                        .filter(issue => issue.state === 'open')
-                        .map(issue => ({
-                            id: issue.number,
-                            title: issue.title,
-                            content: issue.body || '',
-                            issueNumber: issue.number
-                        }));
-                } catch (e) {
-                    console.log('GitHub 卡片加载失败:', e.message);
-                }
+            let hasError = false;
 
-                try {
-                    const galleryIssues = await GitHubAPI.getIssues(CONFIG.LABEL_GALLERY);
-                    gallery = galleryIssues
-                        .filter(issue => issue.state === 'open')
-                        .map(issue => ({
-                            url: issue.body,
-                            issueNumber: issue.number
-                        }))
-                        .filter(item => item.url);
-                } catch (e) {
-                    console.log('GitHub 图片加载失败:', e.message);
-                }
-
-                try {
-                    const commentIssues = await GitHubAPI.getIssues(CONFIG.LABEL_COMMENTS);
-                    comments = commentIssues
-                        .filter(issue => issue.state === 'open')
-                        .map(issue => {
-                            try {
-                                const data = JSON.parse(issue.body);
-                                return {
-                                    name: data.name,
-                                    text: data.text,
-                                    time: data.time,
-                                    issueNumber: issue.number
-                                };
-                            } catch {
-                                return null;
-                            }
-                        })
-                        .filter(Boolean);
-                } catch (e) {
-                    console.log('GitHub 评论加载失败:', e.message);
-                }
+            try {
+                const cardIssues = await GitHubAPI.getIssues(CONFIG.LABEL_CARDS);
+                cards = cardIssues
+                    .filter(issue => issue.state === 'open')
+                    .map(issue => ({
+                        id: issue.number,
+                        title: issue.title,
+                        content: issue.body || '',
+                        issueNumber: issue.number
+                    }));
+            } catch (e) {
+                console.log('GitHub 卡片加载失败:', e.message);
+                hasError = true;
             }
 
+            try {
+                const galleryIssues = await GitHubAPI.getIssues(CONFIG.LABEL_GALLERY);
+                gallery = galleryIssues
+                    .filter(issue => issue.state === 'open')
+                    .map(issue => ({
+                        url: issue.body,
+                        issueNumber: issue.number
+                    }))
+                    .filter(item => item.url);
+            } catch (e) {
+                console.log('GitHub 图片加载失败:', e.message);
+                hasError = true;
+            }
+
+            try {
+                const commentIssues = await GitHubAPI.getIssues(CONFIG.LABEL_COMMENTS);
+                comments = commentIssues
+                    .filter(issue => issue.state === 'open')
+                    .map(issue => {
+                        try {
+                            const data = JSON.parse(issue.body);
+                            return {
+                                name: data.name,
+                                text: data.text,
+                                time: data.time,
+                                issueNumber: issue.number
+                            };
+                        } catch {
+                            return null;
+                        }
+                    })
+                    .filter(Boolean);
+            } catch (e) {
+                console.log('GitHub 评论加载失败:', e.message);
+                hasError = true;
+            }
+
+            // 保存到本地
             saveToLocal();
+            
+            if (hasError && cards.length === 0 && gallery.length === 0 && comments.length === 0) {
+                throw new Error('所有数据加载失败');
+            }
         }
 
         function saveToLocal() {
@@ -804,10 +830,17 @@
         function loadFromLocal() {
             const cache = localStorage.getItem('cangling_cache');
             if (cache) {
-                const data = JSON.parse(cache);
-                cards = data.cards || [];
-                gallery = data.gallery || [];
-                comments = data.comments || [];
+                try {
+                    const data = JSON.parse(cache);
+                    cards = data.cards || [];
+                    gallery = data.gallery || [];
+                    comments = data.comments || [];
+                } catch (e) {
+                    console.error('解析本地缓存失败:', e);
+                    cards = [];
+                    gallery = [];
+                    comments = [];
+                }
             }
         }
 
