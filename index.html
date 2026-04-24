@@ -42,6 +42,19 @@
             z-index: 1;
         }
 
+        /* ===== 加载优化：骨架屏替代转圈 ===== */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 12px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
         .loading-overlay {
             position: fixed;
             top: 0;
@@ -58,7 +71,8 @@
         }
 
         .loading-overlay.hidden {
-            display: none;
+            opacity: 0;
+            pointer-events: none;
         }
 
         .spinner {
@@ -72,6 +86,53 @@
 
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+
+        .sync-status {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 999;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(8px);
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #718096;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .sync-status:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+
+        .sync-status.syncing::before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            border: 2px solid #e2e8f0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .sync-status.success::before {
+            content: '✓';
+            color: #48bb78;
+            font-weight: bold;
+        }
+
+        .sync-status.error::before {
+            content: '✗';
+            color: #fc8181;
+            font-weight: bold;
         }
 
         .error-message {
@@ -357,6 +418,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            loading: lazy; /* 原生懒加载 */
         }
 
         .gallery-item .delete-btn {
@@ -486,6 +548,19 @@
             display: block;
         }
 
+        .load-more {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .load-more:hover {
+            transform: translateY(-2px);
+        }
+
         .footer {
             text-align: center;
             margin-top: 60px;
@@ -546,6 +621,12 @@
                 padding: 6px 12px;
                 font-size: 13px;
             }
+
+            .sync-status {
+                top: 10px;
+                left: 10px;
+                font-size: 11px;
+            }
         }
 
         @media (prefers-color-scheme: dark) {
@@ -581,14 +662,24 @@
                 border-color: rgba(255,255,255,0.1);
                 color: #e2e8f0;
             }
+
+            .sync-status {
+                background: rgba(30, 41, 59, 0.9);
+                color: #a0aec0;
+            }
         }
     </style>
 </head>
 <body>
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
-        <p style="margin-top:20px;color:#667eea;font-weight:500;">正在同步数据...</p>
-        <p id="loadingStatus" style="margin-top:10px;color:#718096;font-size:13px;">初始化中</p>
+        <p style="margin-top:20px;color:#667eea;font-weight:500;">正在加载...</p>
+        <p id="loadingStatus" style="margin-top:10px;color:#718096;font-size:13px;">读取本地缓存</p>
+    </div>
+
+    <!-- 同步状态指示器 -->
+    <div class="sync-status" id="syncStatus" onclick="manualSync()" title="点击手动同步">
+        <span>⟳ 同步中...</span>
     </div>
 
     <div class="admin-bar">
@@ -647,6 +738,7 @@
                     <button class="btn btn-primary" onclick="addComment()">发布留言</button>
                 </div>
                 <div id="commentsList"></div>
+                <div class="load-more" id="loadMoreComments" style="display:none;" onclick="loadMoreComments()">加载更多留言 ↓</div>
             </div>
         </div>
 
@@ -656,6 +748,7 @@
     </div>
 
     <script>
+        // ==================== 配置区 ====================
         const CONFIG = {
             OWNER: 'CangLing-Cerulean',
             REPO: 'canglingling',
@@ -663,86 +756,107 @@
             ADMIN_PASSWORD: 'cangling',
             LABEL_CARDS: 'data-cards',
             LABEL_GALLERY: 'data-gallery',
-            LABEL_COMMENTS: 'data-comments'
+            LABEL_COMMENTS: 'data-comments',
+            COMMENTS_PER_PAGE: 10,
+            CACHE_VERSION: 'v2' // 缓存版本，数据结构变更时递增
         };
 
+        // ==================== 状态管理 ====================
         let isAdmin = false;
         let cards = [];
         let gallery = [];
         let comments = [];
+        let commentsPage = 0;
         let draggedCard = null;
+        let lastSyncTime = 0;
+        let isSyncing = false;
+        let etagCache = {}; // ETag 缓存：{ url: etag }
 
+        // ==================== GitHub API 封装（带缓存）====================
         const GitHubAPI = {
-            async getIssues(label) {
-                const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues?labels=${label}&state=all&per_page=100`;
+            async request(url, options = {}) {
+                const headers = {
+                    'Accept': 'application/vnd.github.v3+json',
+                    ...options.headers
+                };
+                
+                // 添加 Token（如果有）
+                if (CONFIG.TOKEN && CONFIG.TOKEN !== 'TOKEN_PLACEHOLDER' && CONFIG.TOKEN.length > 20) {
+                    headers['Authorization'] = `token ${CONFIG.TOKEN}`;
+                }
+
+                // 添加 ETag 实现条件请求
+                if (etagCache[url] && options.method !== 'POST' && options.method !== 'PATCH' && options.method !== 'PUT') {
+                    headers['If-None-Match'] = etagCache[url];
+                }
+
                 const response = await fetch(url, {
-                    headers: CONFIG.TOKEN !== 'TOKEN_PLACEHOLDER' ? {
-                        'Authorization': `token ${CONFIG.TOKEN}`
-                    } : {}
+                    ...options,
+                    headers
                 });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return await response.json();
+
+                // 304 Not Modified：数据未变更，直接使用本地缓存
+                if (response.status === 304) {
+                    console.log('304 cache hit:', url);
+                    return { cached: true, data: null };
+                }
+
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err.message || `HTTP ${response.status}`);
+                }
+
+                // 保存 ETag
+                const etag = response.headers.get('ETag');
+                if (etag) {
+                    etagCache[url] = etag;
+                }
+
+                const data = await response.json();
+                return { cached: false, data };
+            },
+
+            async getIssues(label, since = null) {
+                let url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues?labels=${label}&state=all&per_page=100&sort=created&direction=desc`;
+                if (since) {
+                    url += `&since=${since}`;
+                }
+                return this.request(url);
             },
 
             async createIssue(title, body, labels) {
-                const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues`;
-                const response = await fetch(url, {
+                return this.request(`https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues`, {
                     method: 'POST',
-                    headers: {
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json',
-                        'Authorization': `token ${CONFIG.TOKEN}`
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ title, body, labels })
                 });
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.message || `HTTP ${response.status}`);
-                }
-                return await response.json();
             },
 
             async updateIssue(number, title, body) {
-                const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues/${number}`;
-                const response = await fetch(url, {
+                return this.request(`https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues/${number}`, {
                     method: 'PATCH',
-                    headers: {
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json',
-                        'Authorization': `token ${CONFIG.TOKEN}`
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ title, body })
                 });
-                if (!response.ok) throw new Error('更新失败');
-                return await response.json();
             },
 
             async closeIssue(number) {
-                const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues/${number}`;
-                const response = await fetch(url, {
+                return this.request(`https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues/${number}`, {
                     method: 'PATCH',
-                    headers: {
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json',
-                        'Authorization': `token ${CONFIG.TOKEN}`
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ state: 'closed' })
                 });
-                if (!response.ok) throw new Error('删除失败');
-                return await response.json();
             },
 
             async uploadFile(path, content, message) {
                 const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/contents/${path}`;
                 
+                // 检查文件是否已存在
                 let sha = null;
                 try {
-                    const getResponse = await fetch(url, {
-                        headers: { 'Authorization': `token ${CONFIG.TOKEN}` }
-                    });
-                    if (getResponse.ok) {
-                        const data = await getResponse.json();
-                        sha = data.sha;
+                    const getRes = await this.request(url);
+                    if (!getRes.cached && getRes.data.sha) {
+                        sha = getRes.data.sha;
                     }
                 } catch (e) {}
 
@@ -753,27 +867,18 @@
                 };
                 if (sha) body.sha = sha;
 
-                const response = await fetch(url, {
+                const res = await this.request(url, {
                     method: 'PUT',
-                    headers: {
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json',
-                        'Authorization': `token ${CONFIG.TOKEN}`
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body)
                 });
                 
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.message || `HTTP ${response.status}`);
-                }
-                
-                const data = await response.json();
-                return data.content.download_url;
+                return res.data.content.download_url;
             }
         };
 
-        async function compressImage(file, maxWidth = 600, maxHeight = 600, quality = 0.5) {
+        // ==================== 图片压缩优化 ====================
+        async function compressImage(file, maxWidth = 800, maxHeight = 800, quality = 0.6) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
                 img.onload = () => {
@@ -790,10 +895,11 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
                     
+                    // 智能压缩：如果还太大，递归降低质量
                     let dataUrl = canvas.toDataURL('image/jpeg', quality);
                     
                     let attempts = 0;
-                    while (dataUrl.length > 40000 && attempts < 3) {
+                    while (dataUrl.length > 30000 && attempts < 3) {
                         quality *= 0.7;
                         maxWidth *= 0.8;
                         maxHeight *= 0.8;
@@ -815,64 +921,259 @@
             });
         }
 
-        // 核心修复：轮询等待 Token 注入
-        async function waitForToken() {
-            let attempts = 0;
-            const maxAttempts = 50; // 最多等 5 秒
-            
-            while (CONFIG.TOKEN === 'TOKEN_PLACEHOLDER' && attempts < maxAttempts) {
-                await new Promise(r => setTimeout(r, 100));
-                attempts++;
+        // ==================== 核心：本地优先 + 后台同步 ====================
+        
+        // 1. 瞬间从本地加载
+        function loadFromLocal() {
+            const cache = localStorage.getItem(`cangling_cache_${CONFIG.CACHE_VERSION}`);
+            if (cache) {
+                try {
+                    const data = JSON.parse(cache);
+                    cards = data.cards || [];
+                    gallery = data.gallery || [];
+                    comments = data.comments || [];
+                    lastSyncTime = data.lastSyncTime || 0;
+                    console.log('本地缓存加载:', cards.length, 'cards,', gallery.length, 'images,', comments.length, 'comments');
+                    return true;
+                } catch (e) {
+                    console.error('本地缓存解析失败:', e);
+                }
             }
-            
-            console.log('Token wait result:', CONFIG.TOKEN.substring(0, 15), 'after', attempts, 'attempts');
-            return CONFIG.TOKEN !== 'TOKEN_PLACEHOLDER';
+            return false;
         }
 
+        // 2. 保存到本地（带版本号）
+        function saveToLocal() {
+            localStorage.setItem(`cangling_cache_${CONFIG.CACHE_VERSION}`, JSON.stringify({
+                cards,
+                gallery,
+                comments,
+                lastSyncTime: Date.now()
+            }));
+        }
+
+        // 3. 后台静默同步（不阻塞 UI）
+        async function backgroundSync() {
+            if (isSyncing) return;
+            isSyncing = true;
+            updateSyncStatus('syncing');
+
+            const hasToken = CONFIG.TOKEN && CONFIG.TOKEN !== 'TOKEN_PLACEHOLDER' && CONFIG.TOKEN.length > 20;
+            if (!hasToken) {
+                updateSyncStatus('error', '未配置 Token');
+                isSyncing = false;
+                return;
+            }
+
+            try {
+                // 并行请求三类数据，利用 ETag 避免重复传输
+                const since = lastSyncTime ? new Date(lastSyncTime).toISOString() : null;
+                
+                const [cardsRes, galleryRes, commentsRes] = await Promise.all([
+                    GitHubAPI.getIssues(CONFIG.LABEL_CARDS, since).catch(e => ({ error: e })),
+                    GitHubAPI.getIssues(CONFIG.LABEL_GALLERY, since).catch(e => ({ error: e })),
+                    GitHubAPI.getIssues(CONFIG.LABEL_COMMENTS, since).catch(e => ({ error: e }))
+                ]);
+
+                let hasUpdate = false;
+
+                // 处理 Cards（如果 304 则跳过）
+                if (!cardsRes.error && !cardsRes.cached) {
+                    const newCards = cardsRes.data
+                        .filter(issue => issue.state === 'open')
+                        .map(issue => ({
+                            id: issue.number,
+                            title: issue.title,
+                            content: issue.body || '',
+                            issueNumber: issue.number,
+                            updatedAt: issue.updated_at
+                        }));
+                    
+                    if (newCards.length > 0) {
+                        // 合并策略：以 GitHub 为准，但保留本地顺序标记
+                        cards = mergeData(cards, newCards, 'issueNumber');
+                        hasUpdate = true;
+                    }
+                }
+
+                // 处理 Gallery
+                if (!galleryRes.error && !galleryRes.cached) {
+                    const newGallery = galleryRes.data
+                        .filter(issue => issue.state === 'open')
+                        .map(issue => ({
+                            url: issue.body,
+                            issueNumber: issue.number,
+                            updatedAt: issue.updated_at
+                        }))
+                        .filter(item => item.url);
+                    
+                    if (newGallery.length > 0) {
+                        gallery = mergeData(gallery, newGallery, 'issueNumber');
+                        hasUpdate = true;
+                    }
+                }
+
+                // 处理 Comments
+                if (!commentsRes.error && !commentsRes.cached) {
+                    const newComments = commentsRes.data
+                        .filter(issue => issue.state === 'open')
+                        .map(issue => {
+                            try {
+                                const data = JSON.parse(issue.body);
+                                return {
+                                    name: data.name,
+                                    text: data.text,
+                                    time: data.time,
+                                    issueNumber: issue.number,
+                                    updatedAt: issue.updated_at
+                                };
+                            } catch {
+                                return null;
+                            }
+                        })
+                        .filter(Boolean);
+                    
+                    if (newComments.length > 0) {
+                        comments = mergeData(comments, newComments, 'issueNumber');
+                        hasUpdate = true;
+                    }
+                }
+
+                // 排序
+                sortCards();
+
+                if (hasUpdate) {
+                    saveToLocal();
+                    renderAll();
+                    showToast('✅ 已同步最新数据');
+                }
+
+                lastSyncTime = Date.now();
+                updateSyncStatus('success', `已同步 ${formatTimeCN(lastSyncTime)}`);
+                
+            } catch (error) {
+                console.error('同步失败:', error);
+                updateSyncStatus('error', '同步失败');
+            } finally {
+                isSyncing = false;
+            }
+        }
+
+        // 数据合并：以远程为准，保留本地特有字段
+        function mergeData(local, remote, key) {
+            const map = new Map();
+            local.forEach(item => map.set(item[key], item));
+            
+            remote.forEach(item => {
+                const existing = map.get(item[key]);
+                if (existing) {
+                    // 保留本地顺序标记
+                    map.set(item[key], { ...item, content: item.content || existing.content });
+                } else {
+                    map.set(item[key], item);
+                }
+            });
+            
+            return Array.from(map.values());
+        }
+
+        function sortCards() {
+            cards.sort((a, b) => {
+                const orderA = parseOrder(a.content);
+                const orderB = parseOrder(b.content);
+                return orderA - orderB;
+            });
+        }
+
+        function parseOrder(content) {
+            const match = content.match(/<!-- order:(\d+) -->/);
+            return match ? parseInt(match[1]) : 999;
+        }
+
+        // ==================== 同步状态 UI ====================
+        function updateSyncStatus(status, text) {
+            const el = document.getElementById('syncStatus');
+            if (!el) return;
+            
+            el.className = 'sync-status ' + status;
+            
+            switch(status) {
+                case 'syncing':
+                    el.innerHTML = '<span>⟳ 同步中...</span>';
+                    break;
+                case 'success':
+                    el.innerHTML = `<span>✓ ${text || '已同步'}</span>`;
+                    break;
+                case 'error':
+                    el.innerHTML = `<span>✗ ${text || '同步失败'}</span>`;
+                    break;
+                default:
+                    el.innerHTML = '<span>⟳ 点击同步</span>';
+            }
+        }
+
+        function manualSync() {
+            if (isSyncing) return;
+            backgroundSync();
+        }
+
+        function formatTimeCN(timestamp) {
+            const date = new Date(timestamp);
+            return `${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
+        }
+
+        // ==================== 初始化：本地优先，后台同步 ====================
         async function init() {
             console.log('=== INIT START ===');
             
-            // 等待 Token 注入
-            const tokenReady = await waitForToken();
-            console.log('Token ready:', tokenReady);
-            console.log('Token value:', CONFIG.TOKEN.substring(0, 15));
+            // 步骤 1：瞬间加载本地缓存（<50ms）
+            const hasLocal = loadFromLocal();
+            updateStatus(hasLocal ? '读取本地缓存...' : '首次访问，准备同步...');
             
-            // 清空旧数据
-            cards = [];
-            gallery = [];
-            comments = [];
-            
-            const hasToken = CONFIG.TOKEN !== 'TOKEN_PLACEHOLDER' && CONFIG.TOKEN.length > 20;
-            console.log('Has valid token:', hasToken);
-            
-            if (hasToken) {
-                updateStatus('同步云端数据...');
-                try {
-                    console.log('Loading from GitHub...');
-                    await loadAllData();
-                    console.log('Loaded cards:', cards.length);
-                } catch (error) {
-                    console.error('GitHub error:', error);
-                    loadFromLocal();
-                }
-            } else {
-                console.log('No token, loading local...');
-                loadFromLocal();
-            }
-            
-            console.log('Before render, cards:', cards.length);
+            // 步骤 2：立即渲染（用户立刻看到内容）
             renderAll();
-            saveToLocal();
+            hideLoading();
             
-            setTimeout(() => {
-                hideLoading();
-                console.log('=== INIT END ===');
-            }, 300);
+            // 步骤 3：后台同步（不阻塞）
+            const tokenReady = await waitForToken();
+            if (tokenReady) {
+                setTimeout(() => backgroundSync(), 500);
+            } else {
+                updateSyncStatus('error', 'Token 未配置');
+            }
+
+            // 步骤 4：定时自动同步（每 30 秒）
+            setInterval(() => {
+                if (!isAdmin) { // 管理模式下不自动刷新，避免冲突
+                    backgroundSync();
+                }
+            }, 30000);
+
+            console.log('=== INIT END ===');
+        }
+
+        async function waitForToken() {
+            // 等待外部脚本注入 Token，最多 3 秒
+            for (let i = 0; i < 30; i++) {
+                if (CONFIG.TOKEN !== 'TOKEN_PLACEHOLDER' && CONFIG.TOKEN.length > 20) {
+                    return true;
+                }
+                await new Promise(r => setTimeout(r, 100));
+            }
+            return false;
         }
 
         function updateStatus(text) {
             const el = document.getElementById('loadingStatus');
             if (el) el.textContent = text;
+        }
+
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.classList.add('hidden');
+                setTimeout(() => overlay.style.display = 'none', 500);
+            }
         }
 
         function showError(message) {
@@ -886,101 +1187,7 @@
             container.insertBefore(errorDiv, container.firstChild);
         }
 
-        function hideLoading() {
-            const overlay = document.getElementById('loadingOverlay');
-            if (overlay) overlay.classList.add('hidden');
-        }
-
-        async function loadAllData() {
-            cards = [];
-            gallery = [];
-            comments = [];
-
-            let hasError = false;
-
-            try {
-                const cardIssues = await GitHubAPI.getIssues(CONFIG.LABEL_CARDS);
-                cards = cardIssues
-                    .filter(issue => issue.state === 'open')
-                    .map(issue => ({
-                        id: issue.number,
-                        title: issue.title,
-                        content: issue.body || '',
-                        issueNumber: issue.number
-                    }));
-                console.log('Cards loaded:', cards.length);
-            } catch (e) {
-                console.log('Cards error:', e.message);
-                hasError = true;
-            }
-
-            try {
-                const galleryIssues = await GitHubAPI.getIssues(CONFIG.LABEL_GALLERY);
-                gallery = galleryIssues
-                    .filter(issue => issue.state === 'open')
-                    .map(issue => ({
-                        url: issue.body,
-                        issueNumber: issue.number
-                    }))
-                    .filter(item => item.url);
-            } catch (e) {
-                console.log('Gallery error:', e.message);
-                hasError = true;
-            }
-
-            try {
-                const commentIssues = await GitHubAPI.getIssues(CONFIG.LABEL_COMMENTS);
-                comments = commentIssues
-                    .filter(issue => issue.state === 'open')
-                    .map(issue => {
-                        try {
-                            const data = JSON.parse(issue.body);
-                            return {
-                                name: data.name,
-                                text: data.text,
-                                time: data.time,
-                                issueNumber: issue.number
-                            };
-                        } catch {
-                            return null;
-                        }
-                    })
-                    .filter(Boolean);
-            } catch (e) {
-                console.log('Comments error:', e.message);
-                hasError = true;
-            }
-
-            cards.sort((a, b) => {
-                const orderA = (a.content.match(/<!-- order:(\d+) -->/) || [0, 999])[1];
-                const orderB = (b.content.match(/<!-- order:(\d+) -->/) || [0, 999])[1];
-                return parseInt(orderA) - parseInt(orderB);
-            });
-
-            if (hasError && cards.length === 0 && gallery.length === 0 && comments.length === 0) {
-                throw new Error('所有数据加载失败');
-            }
-        }
-
-        function saveToLocal() {
-            localStorage.setItem('cangling_cache', JSON.stringify({ cards, gallery, comments }));
-        }
-
-        function loadFromLocal() {
-            const cache = localStorage.getItem('cangling_cache');
-            if (cache) {
-                try {
-                    const data = JSON.parse(cache);
-                    cards = data.cards || [];
-                    gallery = data.gallery || [];
-                    comments = data.comments || [];
-                    console.log('Local loaded:', cards.length);
-                } catch (e) {
-                    console.error('Local parse error:', e);
-                }
-            }
-        }
-
+        // ==================== 管理功能 ====================
         function toggleAdmin() {
             if (isAdmin) {
                 logout();
@@ -1020,6 +1227,7 @@
             document.getElementById('passwordInput').value = '';
         }
 
+        // ==================== 卡片渲染（支持拖拽排序）====================
         function initDragEvents(cardEl, card) {
             cardEl.draggable = true;
             
@@ -1064,6 +1272,7 @@
                 renderCards();
                 showToast('顺序已更新');
                 
+                // 后台同步顺序到 GitHub
                 try {
                     for (let i = 0; i < cards.length; i++) {
                         const c = cards[i];
@@ -1079,7 +1288,7 @@
                     }
                     saveToLocal();
                 } catch (err) {
-                    console.error('Sync order failed:', err);
+                    console.error('同步顺序失败:', err);
                 }
             });
         }
@@ -1097,13 +1306,15 @@
                     initDragEvents(cardEl, card);
                 }
                 
+                const cleanContent = (card.content || '').replace(/<!-- order:\d+ -->/g, '').trim();
+                
                 cardEl.innerHTML = `
                     ${isAdmin ? '<div class="drag-handle">⋮⋮</div>' : ''}
                     <div class="card-actions">
                         <button class="btn btn-danger btn-sm" onclick="deleteCard(${card.issueNumber})">删除</button>
                     </div>
                     <h3 contenteditable="${isAdmin}" onblur="saveCard(${card.issueNumber}, 'title', this.innerText)">${escapeHtml(card.title)}</h3>
-                    <p contenteditable="${isAdmin}" onblur="saveCard(${card.issueNumber}, 'content', this.innerText)">${escapeHtml(card.content.replace(/<!-- order:\d+ -->/g, ''))}</p>
+                    <p contenteditable="${isAdmin}" onblur="saveCard(${card.issueNumber}, 'content', this.innerText)">${escapeHtml(cleanContent)}</p>
                 `;
                 container.appendChild(cardEl);
             });
@@ -1181,10 +1392,10 @@
                 const issue = await GitHubAPI.createIssue(title, contentWithOrder, [CONFIG.LABEL_CARDS]);
                 
                 cards.push({
-                    id: issue.number,
-                    title: issue.title,
-                    content: issue.body,
-                    issueNumber: issue.number
+                    id: issue.data.number,
+                    title: issue.data.title,
+                    content: issue.data.body,
+                    issueNumber: issue.data.number
                 });
                 
                 saveToLocal();
@@ -1196,6 +1407,7 @@
             }
         }
 
+        // ==================== 图片画廊（懒加载优化）====================
         function renderGallery() {
             const grid = document.getElementById('galleryGrid');
             const uploadArea = document.getElementById('uploadArea');
@@ -1206,7 +1418,7 @@
                 const div = document.createElement('div');
                 div.className = 'gallery-item';
                 div.innerHTML = `
-                    <img src="${item.url}" alt="图片" onclick="viewImage('${item.url}')">
+                    <img src="${item.url}" alt="图片" loading="lazy" onclick="viewImage('${item.url}')">
                     <button class="delete-btn" onclick="deleteImage(${item.issueNumber}, event)">×</button>
                 `;
                 grid.appendChild(div);
@@ -1236,8 +1448,8 @@
                     
                     await GitHubAPI.createIssue(`image_${filename}`, imageUrl, [CONFIG.LABEL_GALLERY]);
                     
-                    await loadAllData();
-                    renderGallery();
+                    // 重新同步以获取最新数据
+                    await backgroundSync();
                     showToast('上传成功');
                 } catch (err) {
                     showToast('❌ 上传失败: ' + err.message);
@@ -1271,16 +1483,25 @@
             document.body.appendChild(overlay);
         }
 
+        // ==================== 留言板（分页加载）====================
         function renderComments() {
             const list = document.getElementById('commentsList');
+            const loadMoreBtn = document.getElementById('loadMoreComments');
+            
             list.innerHTML = '';
 
             if (comments.length === 0) {
                 list.innerHTML = '<div style="text-align:center;color:#a0aec0;padding:40px;">还没有留言，来说点什么吧~</div>';
+                loadMoreBtn.style.display = 'none';
                 return;
             }
 
-            comments.slice().reverse().forEach((comment) => {
+            // 分页显示
+            const start = 0;
+            const end = (commentsPage + 1) * CONFIG.COMMENTS_PER_PAGE;
+            const displayComments = comments.slice().reverse().slice(start, end);
+            
+            displayComments.forEach((comment) => {
                 const item = document.createElement('div');
                 item.className = `comment-item ${isAdmin ? 'editable' : ''}`;
                 item.innerHTML = `
@@ -1293,6 +1514,15 @@
                 `;
                 list.appendChild(item);
             });
+
+            // 是否显示"加载更多"
+            const hasMore = comments.length > end;
+            loadMoreBtn.style.display = hasMore ? 'block' : 'none';
+        }
+
+        function loadMoreComments() {
+            commentsPage++;
+            renderComments();
         }
 
         async function addComment() {
@@ -1317,11 +1547,12 @@
                     [CONFIG.LABEL_COMMENTS]
                 );
                 
-                await loadAllData();
-                renderComments();
+                // 同步并刷新
+                await backgroundSync();
                 
                 document.getElementById('commentName').value = '';
                 document.getElementById('commentText').value = '';
+                commentsPage = 0; // 重置到第一页，显示最新
                 showToast('留言成功');
             } catch (error) {
                 showToast('❌ 留言失败: ' + error.message);
@@ -1343,8 +1574,8 @@
             }
         }
 
+        // ==================== 工具函数 ====================
         function renderAll() {
-            console.log('renderAll called, cards:', cards.length);
             renderCards();
             renderGallery();
             renderComments();
@@ -1380,6 +1611,7 @@
             }, 2000);
         }
 
+        // ==================== 事件绑定 ====================
         document.querySelectorAll('.modal-overlay').forEach(overlay => {
             overlay.addEventListener('click', (e) => {
                 if (e.target === overlay) overlay.classList.remove('active');
@@ -1399,13 +1631,11 @@
             handleUpload({ target: { files } });
         });
 
-        // 启动：等待 DOM 和 Token
+        // 启动
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                setTimeout(init, 100);
-            });
+            document.addEventListener('DOMContentLoaded', init);
         } else {
-            setTimeout(init, 100);
+            init();
         }
     </script>
 </body>
