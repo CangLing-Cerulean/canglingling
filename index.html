@@ -42,19 +42,6 @@
             z-index: 1;
         }
 
-        /* ===== 加载优化：骨架屏替代转圈 ===== */
-        .skeleton {
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            border-radius: 12px;
-        }
-
-        @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-
         .loading-overlay {
             position: fixed;
             top: 0;
@@ -71,7 +58,1558 @@
         }
 
         .loading-overlay.hidden {
-            opacity: 0;
+            display: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .sync-status {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 999;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(8px);
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #718096;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .sync-status:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+
+        .sync-status.syncing::before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            border: 2px solid #e2e8f0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .sync-status.success::before {
+            content: '✓';
+            color: #48bb78;
+            font-weight: bold;
+        }
+
+        .sync-status.error::before {
+            content: '✗';
+            color: #fc8181;
+            font-weight: bold;
+        }
+
+        .error-message {
+            background: #fff5f5;
+            border: 1px solid #fc8181;
+            color: #c53030;
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .admin-bar {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.9);
+            color: #4a5568;
+            border: 1px solid #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: white;
+        }
+
+        .btn-danger {
+            background: #fc8181;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #f56565;
+        }
+
+        .btn-sm {
+            padding: 4px 12px;
+            font-size: 12px;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 20px;
+            padding: 32px;
+            width: 90%;
+            max-width: 420px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: modalIn 0.3s ease;
+        }
+
+        @keyframes modalIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .modal h3 {
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+        .modal input, .modal textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 15px;
+            margin-bottom: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+
+        .modal input:focus, .modal textarea:focus {
+            border-color: #667eea;
+        }
+
+        .modal .btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .hero {
+            margin-bottom: 60px;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .hero h1 {
+            font-size: 44px;
+            font-weight: 800;
+            color: #1a202c;
+            line-height: 1.3;
+            margin-bottom: 10px;
+            letter-spacing: -0.5px;
+        }
+
+        .hero h2 {
+            font-size: 44px;
+            font-weight: 800;
+            color: #1a202c;
+            line-height: 1.3;
+            letter-spacing: -0.5px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.82);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            padding: 32px 36px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: fadeInUp 0.8s ease-out backwards;
+            position: relative;
+        }
+
+        .card:nth-child(2) { animation-delay: 0.1s; }
+        .card:nth-child(3) { animation-delay: 0.2s; }
+        .card:nth-child(4) { animation-delay: 0.3s; }
+        .card:nth-child(5) { animation-delay: 0.4s; }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.92);
+        }
+
+        .card.dragging {
+            opacity: 0.5;
+            transform: scale(1.02);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            cursor: grabbing;
+        }
+
+        .card.drag-over {
+            border-top: 3px solid #667eea;
+            transform: translateY(8px);
+        }
+
+        .card h3 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card h3::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 22px;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            border-radius: 3px;
+        }
+
+        .card p {
+            font-size: 16px;
+            line-height: 1.9;
+            color: #4a5568;
+        }
+
+        .card.editable {
+            border: 2px dashed #667eea;
+        }
+
+        .card .card-actions {
+            display: none;
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            gap: 6px;
+        }
+
+        .card.editable .card-actions {
+            display: flex;
+        }
+
+        .card-actions .btn {
+            padding: 4px 10px;
+            font-size: 12px;
+        }
+
+        .drag-handle {
+            display: none;
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #a0aec0;
+            cursor: grab;
+            font-size: 20px;
+            padding: 8px;
+        }
+
+        .card.editable .drag-handle {
+            display: block;
+        }
+
+        .card.editable h3 {
+            padding-left: 36px;
+        }
+
+        .gallery-section {
+            margin-bottom: 24px;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .gallery-item {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            aspect-ratio: 1;
+            background: #f7fafc;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .gallery-item:hover {
+            transform: scale(1.02);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .gallery-item .delete-btn {
+            display: none;
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(252, 129, 129, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .editable .gallery-item .delete-btn {
+            display: flex;
+        }
+
+        .upload-area {
+            border: 3px dashed #cbd5e0;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #718096;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .upload-area input {
+            display: none;
+        }
+
+        .comments-section {
+            margin-top: 40px;
+        }
+
+        .comment-form {
+            background: rgba(255,255,255,0.82);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.05);
+        }
+
+        .comment-form input,
+        .comment-form textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 15px;
+            margin-bottom: 12px;
+            outline: none;
+            font-family: inherit;
+            resize: vertical;
+        }
+
+        .comment-form input:focus,
+        .comment-form textarea:focus {
+            border-color: #667eea;
+        }
+
+        .comment-form textarea {
+            min-height: 100px;
+        }
+
+        .comment-item {
+            background: rgba(255,255,255,0.82);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 20px 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+            position: relative;
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .comment-author {
+            font-weight: 600;
+            color: #1a202c;
+            font-size: 15px;
+        }
+
+        .comment-time {
+            font-size: 13px;
+            color: #a0aec0;
+        }
+
+        .comment-content {
+            color: #4a5568;
+            line-height: 1.7;
+            font-size: 15px;
+        }
+
+        .comment-delete {
+            display: none;
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            color: #fc8181;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .editable .comment-delete {
+            display: block;
+        }
+
+        .load-more {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .load-more:hover {
+            transform: translateY(-2px);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding: 20px;
+            color: #718096;
+            font-size: 14px;
+            animation: fadeIn 1.2s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 50px 16px 40px;
+            }
+
+            .hero h1, .hero h2 {
+                font-size: 32px;
+            }
+
+            .card {
+                padding: 24px 22px;
+                border-radius: 16px;
+            }
+
+            .card h3 {
+                font-size: 19px;
+            }
+
+            .card p {
+                font-size: 15px;
+            }
+
+            .gallery-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .admin-bar {
+                top: 10px;
+                right: 10px;
+            }
+
+            .btn {
+                padding: 6px 12px;
+                font-size: 13px;
+            }
+
+            .sync-status {
+                top: 10px;
+                left: 10px;
+                font-size: 11px;
+            }
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: linear-gradient(135deg, #1a1f2e 0%, #16213e 100%);
+                color: #e2e8f0;
+            }
+
+            .hero h1, .hero h2 {
+                color: #f7fafc;
+            }
+
+            .card, .comment-form, .comment-item {
+                background: rgba(30, 41, 59, 0.8);
+                border-color: rgba(255, 255, 255, 0.08);
+            }
+
+            .card:hover {
+                background: rgba(30, 41, 59, 0.9);
+            }
+
+            .card h3 {
+                color: #f7fafc;
+            }
+
+            .card p, .comment-content {
+                color: #a0aec0;
+            }
+
+            .comment-form input,
+            .comment-form textarea {
+                background: rgba(30, 41, 59, 0.6);
+                border-color: rgba(255,255,255,0.1);
+                color: #e2e8f0;
+            }
+
+            .sync-status {
+                background: rgba(30, 41, 59, 0.9);
+                color: #a0aec0;
+            }
+        }
+    </style>
+<base target="_blank">
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p style="margin-top:20px;color:#667eea;font-weight:500;">正在加载...</p>
+        <p id="loadingStatus" style="margin-top:10px;color:#718096;font-size:13px;">初始化中</p>
+    </div>
+
+    <div class="sync-status" id="syncStatus" onclick="manualSync()" title="点击手动同步">
+        <span>⟳ 同步中...</span>
+    </div>
+
+    <div class="admin-bar">
+        <button class="btn btn-secondary" id="adminBtn" onclick="toggleAdmin()">🐾 沧翎</button>
+    </div>
+
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal">
+            <h3>🔐 验证身份</h3>
+            <input type="password" id="passwordInput" placeholder="请输入密码" onkeypress="if(event.key==='Enter')login()">
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="login()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="addCardModal">
+        <div class="modal">
+            <h3>➕ 添加信息栏</h3>
+            <input type="text" id="newCardTitle" placeholder="标题">
+            <textarea id="newCardContent" placeholder="内容" style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:15px;min-height:100px;resize:vertical;outline:none;font-family:inherit;margin-bottom:16px;"></textarea>
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="closeAddCardModal()">取消</button>
+                <button class="btn btn-primary" onclick="addCard()">添加</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-decoration"></div>
+
+    <div class="container">
+        <div class="hero" id="heroSection">
+            <h1 id="heroTitle1">嗨嗨！你好嗷~</h1>
+            <h2 id="heroTitle2">欢迎你发现了这里</h2>
+        </div>
+
+        <div id="cardsContainer"></div>
+
+        <div class="card gallery-section" id="galleryCard">
+            <h3>📷 图片展示</h3>
+            <div class="gallery-grid" id="galleryGrid"></div>
+            <div class="upload-area" id="uploadArea" style="display:none;margin-top:16px;" onclick="document.getElementById('fileInput').click()">
+                <input type="file" id="fileInput" accept="image/*" multiple onchange="handleUpload(event)">
+                <div style="font-size:40px;margin-bottom:8px;">📤</div>
+                <div>点击或拖拽上传图片</div>
+            </div>
+        </div>
+
+        <div class="comments-section" id="commentsSection">
+            <div class="card">
+                <h3>💬 留言板</h3>
+                <div class="comment-form">
+                    <input type="text" id="commentName" placeholder="你的昵称" maxlength="20">
+                    <textarea id="commentText" placeholder="写下你想说的话..." maxlength="500"></textarea>
+                    <button class="btn btn-primary" onclick="addComment()">发布留言</button>
+                </div>
+                <div id="commentsList"></div>
+                <div class="load-more" id="loadMoreComments" style="display:none;" onclick="loadMoreComments()">加载更多留言 ↓</div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>© 沧翎翎的小窝 · 永远做不完的网站</p>
+        </div>
+    </div>
+
+    <script>
+        const CONFIG = {
+            OWNER: 'CangLing-Cerulean',
+            REPO: 'canglingling',
+            TOKEN: 'TOKEN_PLACEHOLDER',
+            ADMIN_PASSWORD: 'cangling',
+            LABEL_CARDS: 'data-cards',
+            LABEL_GALLERY: 'data-gallery',
+            LABEL_COMMENTS: 'data-comments',
+            COMMENTS_PER_PAGE: 10,
+            CACHE_VERSION: 'v2'
+        };
+
+        let isAdmin = false;
+        let cards = [];
+        let gallery = [];
+        let comments = [];
+        let commentsPage = 0;
+        let draggedCard = null;
+        let lastSyncTime = 0;
+        let isSyncing = false;
+        let etagCache = {};
+
+        // ========== 核心修复：兼容原始 Token 注入方式 ==========
+
+        // 检测是否有有效 Token（与原始代码逻辑一致）
+        function hasValidToken() {
+            return CONFIG.TOKEN !== 'TOKEN_PLACEHOLDER' && CONFIG.TOKEN.length > 20;
+        }
+
+        // 等待 Token 注入（兼容外部脚本延迟注入）
+        async function waitForToken() {
+            // 如果已经有 Token，立即返回
+            if (hasValidToken()) return true;
+
+            // 否则等待外部脚本注入，最多 5 秒
+            for (let i = 0; i < 50; i++) {
+                if (hasValidToken()) return true;
+                await new Promise(r => setTimeout(r, 100));
+            }
+            return false;
+        }
+
+        const GitHubAPI = {
+            async getIssues(label, since = null) {
+                const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues?labels=${label}&state=all&per_page=100&sort=created&direction=desc` + (since ? `&since=${since}` : '');
+                const headers = {};
+                if (hasValidToken()) {
+                    headers['Authorization'] = `token ${CONFIG.TOKEN}`;
+                }
+                // ETag 缓存
+                if (etagCache[url]) {
+                    headers['If-None-Match'] = etagCache[url];
+                }
+
+                const response = await fetch(url, { headers });
+
+                if (response.status === 304) {
+                    return { cached: true, data: null };
+                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const etag = response.headers.get('ETag');
+                if (etag) etagCache[url] = etag;
+
+                return { cached: false, data: await response.json() };
+            },
+
+            async createIssue(title, body, labels) {
+                const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json',
+                        'Authorization': `token ${CONFIG.TOKEN}`
+                    },
+                    body: JSON.stringify({ title, body, labels })
+                });
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.message || `HTTP ${response.status}`);
+                }
+                return await response.json();
+            },
+
+            async updateIssue(number, title, body) {
+                const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues/${number}`;
+                const response = await fetch(url, {
+                    method: 'PATCH',
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json',
+                        'Authorization': `token ${CONFIG.TOKEN}`
+                    },
+                    body: JSON.stringify({ title, body })
+                });
+                if (!response.ok) throw new Error('更新失败');
+                return await response.json();
+            },
+
+            async closeIssue(number) {
+                const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/issues/${number}`;
+                const response = await fetch(url, {
+                    method: 'PATCH',
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json',
+                        'Authorization': `token ${CONFIG.TOKEN}`
+                    },
+                    body: JSON.stringify({ state: 'closed' })
+                });
+                if (!response.ok) throw new Error('删除失败');
+                return await response.json();
+            },
+
+            async uploadFile(path, content, message) {
+                const url = `https://api.github.com/repos/${CONFIG.OWNER}/${CONFIG.REPO}/contents/${path}`;
+
+                let sha = null;
+                try {
+                    const getResponse = await fetch(url, {
+                        headers: { 'Authorization': `token ${CONFIG.TOKEN}` }
+                    });
+                    if (getResponse.ok) {
+                        const data = await getResponse.json();
+                        sha = data.sha;
+                    }
+                } catch (e) {}
+
+                const body = {
+                    message: message || 'Upload image',
+                    content: content,
+                    branch: 'main'
+                };
+                if (sha) body.sha = sha;
+
+                const response = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json',
+                        'Authorization': `token ${CONFIG.TOKEN}`
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.message || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data.content.download_url;
+            }
+        };
+
+        async function compressImage(file, maxWidth = 800, maxHeight = 800, quality = 0.6) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    const scale = Math.min(maxWidth / width, maxHeight / height, 1);
+                    width *= scale;
+                    height *= scale;
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    let dataUrl = canvas.toDataURL('image/jpeg', quality);
+
+                    let attempts = 0;
+                    while (dataUrl.length > 30000 && attempts < 3) {
+                        quality *= 0.7;
+                        maxWidth *= 0.8;
+                        maxHeight *= 0.8;
+                        const newCanvas = document.createElement('canvas');
+                        newCanvas.width = maxWidth;
+                        newCanvas.height = maxHeight;
+                        newCanvas.getContext('2d').drawImage(img, 0, 0, maxWidth, maxHeight);
+                        dataUrl = newCanvas.toDataURL('image/jpeg', quality);
+                        attempts++;
+                    }
+
+                    resolve(dataUrl);
+                };
+                img.onerror = reject;
+
+                const reader = new FileReader();
+                reader.onload = (e) => img.src = e.target.result;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // ========== 本地缓存系统 ==========
+
+        function loadFromLocal() {
+            const cache = localStorage.getItem(`cangling_cache_${CONFIG.CACHE_VERSION}`);
+            if (cache) {
+                try {
+                    const data = JSON.parse(cache);
+                    cards = data.cards || [];
+                    gallery = data.gallery || [];
+                    comments = data.comments || [];
+                    lastSyncTime = data.lastSyncTime || 0;
+                    console.log('本地缓存加载:', cards.length, 'cards,', gallery.length, 'images,', comments.length, 'comments');
+                    return true;
+                } catch (e) {
+                    console.error('本地缓存解析失败:', e);
+                }
+            }
+            return false;
+        }
+
+        function saveToLocal() {
+            localStorage.setItem(`cangling_cache_${CONFIG.CACHE_VERSION}`, JSON.stringify({
+                cards,
+                gallery,
+                comments,
+                lastSyncTime: Date.now()
+            }));
+        }
+
+        // ========== 后台同步（核心优化）==========
+
+        async function backgroundSync() {
+            if (isSyncing) return;
+            isSyncing = true;
+            updateSyncStatus('syncing');
+
+            if (!hasValidToken()) {
+                updateSyncStatus('error', 'Token 未配置');
+                isSyncing = false;
+                return;
+            }
+
+            try {
+                const since = lastSyncTime ? new Date(lastSyncTime).toISOString() : null;
+
+                // 并行请求三类数据
+                const [cardsRes, galleryRes, commentsRes] = await Promise.all([
+                    GitHubAPI.getIssues(CONFIG.LABEL_CARDS, since).catch(e => ({ error: e })),
+                    GitHubAPI.getIssues(CONFIG.LABEL_GALLERY, since).catch(e => ({ error: e })),
+                    GitHubAPI.getIssues(CONFIG.LABEL_COMMENTS, since).catch(e => ({ error: e }))
+                ]);
+
+                let hasUpdate = false;
+
+                // 处理 Cards
+                if (!cardsRes.error && !cardsRes.cached) {
+                    const newCards = cardsRes.data
+                        .filter(issue => issue.state === 'open')
+                        .map(issue => ({
+                            id: issue.number,
+                            title: issue.title,
+                            content: issue.body || '',
+                            issueNumber: issue.number
+                        }));
+
+                    if (newCards.length > 0 || cards.length === 0) {
+                        cards = mergeData(cards, newCards, 'issueNumber');
+                        hasUpdate = true;
+                    }
+                }
+
+                // 处理 Gallery
+                if (!galleryRes.error && !galleryRes.cached) {
+                    const newGallery = galleryRes.data
+                        .filter(issue => issue.state === 'open')
+                        .map(issue => ({
+                            url: issue.body,
+                            issueNumber: issue.number
+                        }))
+                        .filter(item => item.url);
+
+                    if (newGallery.length > 0 || gallery.length === 0) {
+                        gallery = mergeData(gallery, newGallery, 'issueNumber');
+                        hasUpdate = true;
+                    }
+                }
+
+                // 处理 Comments
+                if (!commentsRes.error && !commentsRes.cached) {
+                    const newComments = commentsRes.data
+                        .filter(issue => issue.state === 'open')
+                        .map(issue => {
+                            try {
+                                const data = JSON.parse(issue.body);
+                                return {
+                                    name: data.name,
+                                    text: data.text,
+                                    time: data.time,
+                                    issueNumber: issue.number
+                                };
+                            } catch {
+                                return null;
+                            }
+                        })
+                        .filter(Boolean);
+
+                    if (newComments.length > 0 || comments.length === 0) {
+                        comments = mergeData(comments, newComments, 'issueNumber');
+                        hasUpdate = true;
+                    }
+                }
+
+                // 排序
+                cards.sort((a, b) => {
+                    const orderA = (a.content.match(/<!-- order:(\d+) -->/) || [0, 999])[1];
+                    const orderB = (b.content.match(/<!-- order:(\d+) -->/) || [0, 999])[1];
+                    return parseInt(orderA) - parseInt(orderB);
+                });
+
+                if (hasUpdate) {
+                    saveToLocal();
+                    renderAll();
+                    showToast('✅ 已同步最新数据');
+                }
+
+                lastSyncTime = Date.now();
+                updateSyncStatus('success', `已同步 ${formatTimeCN(lastSyncTime)}`);
+
+            } catch (error) {
+                console.error('同步失败:', error);
+                updateSyncStatus('error', '同步失败');
+            } finally {
+                isSyncing = false;
+            }
+        }
+
+        function mergeData(local, remote, key) {
+            const map = new Map();
+            local.forEach(item => map.set(item[key], item));
+            remote.forEach(item => {
+                const existing = map.get(item[key]);
+                if (existing) {
+                    map.set(item[key], { ...item, content: item.content || existing.content });
+                } else {
+                    map.set(item[key], item);
+                }
+            });
+            return Array.from(map.values());
+        }
+
+        function updateSyncStatus(status, text) {
+            const el = document.getElementById('syncStatus');
+            if (!el) return;
+            el.className = 'sync-status ' + status;
+            switch(status) {
+                case 'syncing':
+                    el.innerHTML = '<span>⟳ 同步中...</span>'; break;
+                case 'success':
+                    el.innerHTML = `<span>✓ ${text || '已同步'}</span>`; break;
+                case 'error':
+                    el.innerHTML = `<span>✗ ${text || '同步失败'}</span>`; break;
+                default:
+                    el.innerHTML = '<span>⟳ 点击同步</span>';
+            }
+        }
+
+        function manualSync() {
+            if (isSyncing) return;
+            backgroundSync();
+        }
+
+        function formatTimeCN(timestamp) {
+            const date = new Date(timestamp);
+            return `${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
+        }
+
+        // ========== 初始化（兼容原始逻辑）==========
+
+        async function init() {
+            console.log('=== INIT START ===');
+            console.log('Token check:', CONFIG.TOKEN.substring(0, 15), 'length:', CONFIG.TOKEN.length);
+
+            // 步骤 1：先加载本地缓存
+            const hasLocal = loadFromLocal();
+            updateStatus(hasLocal ? '读取本地缓存...' : '首次访问，准备同步...');
+
+            // 步骤 2：立即渲染（用户立刻看到内容）
+            renderAll();
+            hideLoading();
+
+            // 步骤 3：等待 Token 并同步（与原始代码一致）
+            const tokenReady = await waitForToken();
+            console.log('Token ready:', tokenReady);
+
+            if (tokenReady) {
+                updateSyncStatus('syncing');
+                setTimeout(() => backgroundSync(), 100);
+            } else {
+                updateSyncStatus('error', 'Token 未配置');
+                console.log('No valid token, using local data only');
+            }
+
+            // 步骤 4：定时自动同步
+            setInterval(() => {
+                if (!isAdmin && hasValidToken()) {
+                    backgroundSync();
+                }
+            }, 30000);
+
+            console.log('=== INIT END ===');
+        }
+
+        function updateStatus(text) {
+            const el = document.getElementById('loadingStatus');
+            if (el) el.textContent = text;
+        }
+
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.classList.add('hidden');
+                setTimeout(() => overlay.style.display = 'none', 500);
+            }
+        }
+
+        function showError(message) {
+            const container = document.querySelector('.container');
+            const existing = container.querySelector('.error-message');
+            if (existing) existing.remove();
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.innerHTML = message;
+            container.insertBefore(errorDiv, container.firstChild);
+        }
+
+        // ========== 管理功能 ==========
+
+        function toggleAdmin() {
+            if (isAdmin) {
+                logout();
+            } else {
+                document.getElementById('loginModal').classList.add('active');
+                document.getElementById('passwordInput').focus();
+            }
+        }
+
+        function login() {
+            const pwd = document.getElementById('passwordInput').value;
+            if (pwd === CONFIG.ADMIN_PASSWORD) {
+                isAdmin = true;
+                document.getElementById('adminBtn').textContent = '🐾 沧翎';
+                document.getElementById('adminBtn').classList.remove('btn-secondary');
+                document.getElementById('adminBtn').classList.add('btn-danger');
+                closeModal();
+                renderAll();
+                showToast('✅ 管理模式已开启');
+            } else {
+                showToast('❌ 密码错误');
+                document.getElementById('passwordInput').value = '';
+            }
+        }
+
+        function logout() {
+            isAdmin = false;
+            document.getElementById('adminBtn').textContent = '🐾 沧翎';
+            document.getElementById('adminBtn').classList.remove('btn-danger');
+            document.getElementById('adminBtn').classList.add('btn-secondary');
+            renderAll();
+            showToast('已退出管理');
+        }
+
+        function closeModal() {
+            document.getElementById('loginModal').classList.remove('active');
+            document.getElementById('passwordInput').value = '';
+        }
+
+        // ========== 卡片功能 ==========
+
+        function initDragEvents(cardEl, card) {
+            cardEl.draggable = true;
+            cardEl.addEventListener('dragstart', (e) => {
+                draggedCard = card;
+                cardEl.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            cardEl.addEventListener('dragend', () => {
+                cardEl.classList.remove('dragging');
+                draggedCard = null;
+                document.querySelectorAll('.card').forEach(c => c.classList.remove('drag-over'));
+            });
+            cardEl.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (draggedCard && draggedCard !== card) {
+                    cardEl.classList.add('drag-over');
+                }
+            });
+            cardEl.addEventListener('dragleave', () => {
+                cardEl.classList.remove('drag-over');
+            });
+            cardEl.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                cardEl.classList.remove('drag-over');
+                if (!draggedCard || draggedCard === card) return;
+
+                const fromIndex = cards.findIndex(c => c.issueNumber === draggedCard.issueNumber);
+                const toIndex = cards.findIndex(c => c.issueNumber === card.issueNumber);
+                if (fromIndex === -1 || toIndex === -1) return;
+
+                cards.splice(fromIndex, 1);
+                cards.splice(toIndex, 0, draggedCard);
+                saveToLocal();
+                renderCards();
+                showToast('顺序已更新');
+
+                try {
+                    for (let i = 0; i < cards.length; i++) {
+                        const c = cards[i];
+                        const orderMarker = `<!-- order:${i} -->`;
+                        let newContent;
+                        if (c.content.includes('<!-- order:')) {
+                            newContent = c.content.replace(/<!-- order:\d+ -->/, orderMarker);
+                        } else {
+                            newContent = c.content + '\n\n' + orderMarker;
+                        }
+                        await GitHubAPI.updateIssue(c.issueNumber, c.title, newContent);
+                        c.content = newContent;
+                    }
+                    saveToLocal();
+                } catch (err) {
+                    console.error('Sync order failed:', err);
+                }
+            });
+        }
+
+        function renderCards() {
+            const container = document.getElementById('cardsContainer');
+            container.innerHTML = '';
+
+            cards.forEach((card) => {
+                const cardEl = document.createElement('div');
+                cardEl.className = `card ${isAdmin ? 'editable' : ''}`;
+                cardEl.dataset.issueNumber = card.issueNumber;
+
+                if (isAdmin) {
+                    initDragEvents(cardEl, card);
+                }
+
+                const cleanContent = (card.content || '').replace(/<!-- order:\d+ -->/g, '').trim();
+
+                cardEl.innerHTML = `
+                    ${isAdmin ? '<div class="drag-handle">⋮⋮</div>' : ''}
+                    <div class="card-actions">
+                        <button class="btn btn-danger btn-sm" onclick="deleteCard(${card.issueNumber})">删除</button>
+                    </div>
+                    <h3 contenteditable="${isAdmin}" onblur="saveCard(${card.issueNumber}, 'title', this.innerText)">${escapeHtml(card.title)}</h3>
+                    <p contenteditable="${isAdmin}" onblur="saveCard(${card.issueNumber}, 'content', this.innerText)">${escapeHtml(cleanContent)}</p>
+                `;
+                container.appendChild(cardEl);
+            });
+
+            if (isAdmin) {
+                const addBtn = document.createElement('div');
+                addBtn.className = 'card';
+                addBtn.style.cssText = 'text-align:center;cursor:pointer;border:3px dashed #cbd5e0;background:rgba(255,255,255,0.5);';
+                addBtn.innerHTML = '<div style="font-size:40px;color:#667eea;margin-bottom:8px;">+</div><div style="color:#667eea;font-weight:600;">添加信息栏</div>';
+                addBtn.onclick = () => document.getElementById('addCardModal').classList.add('active');
+                container.appendChild(addBtn);
+            }
+        }
+
+        async function saveCard(issueNumber, field, value) {
+            if (!isAdmin) return;
+            const card = cards.find(c => c.issueNumber === issueNumber);
+            if (!card) return;
+
+            const cleanValue = value.replace(/<!-- order:\d+ -->/g, '').trim();
+            const newTitle = field === 'title' ? cleanValue : card.title;
+            const newContent = field === 'content' ? cleanValue : card.content.replace(/<!-- order:\d+ -->/g, '');
+
+            const orderMatch = card.content.match(/<!-- order:(\d+) -->/);
+            const orderMarker = orderMatch ? `<!-- order:${orderMatch[1]} -->` : '';
+            const finalContent = newContent + (orderMarker ? '\n\n' + orderMarker : '');
+
+            if (newTitle === card.title && finalContent === card.content) return;
+
+            try {
+                await GitHubAPI.updateIssue(card.issueNumber, newTitle, finalContent);
+                card.title = newTitle;
+                card.content = finalContent;
+                saveToLocal();
+                showToast('已保存');
+            } catch (error) {
+                showToast('❌ 保存失败: ' + error.message);
+            }
+        }
+
+        async function deleteCard(issueNumber) {
+            if (!isAdmin) return;
+            if (!confirm('确定要删除这个信息栏吗？')) return;
+
+            try {
+                await GitHubAPI.closeIssue(issueNumber);
+                cards = cards.filter(c => c.issueNumber !== issueNumber);
+                saveToLocal();
+                renderCards();
+                showToast('已删除');
+            } catch (error) {
+                showToast('❌ 删除失败: ' + error.message);
+            }
+        }
+
+        function closeAddCardModal() {
+            document.getElementById('addCardModal').classList.remove('active');
+            document.getElementById('newCardTitle').value = '';
+            document.getElementById('newCardContent').value = '';
+        }
+
+        async function addCard() {
+            const title = document.getElementById('newCardTitle').value.trim();
+            const content = document.getElementById('newCardContent').value.trim();
+
+            if (!title || !content) {
+                showToast('请填写标题和内容');
+                return;
+            }
+
+            try {
+                const order = cards.length;
+                const contentWithOrder = content + `\n\n<!-- order:${order} -->`;
+                const issue = await GitHubAPI.createIssue(title, contentWithOrder, [CONFIG.LABEL_CARDS]);
+
+                cards.push({
+                    id: issue.number,
+                    title: issue.title,
+                    content: issue.body,
+                    issueNumber: issue.number
+                });
+
+                saveToLocal();
+                renderCards();
+                closeAddCardModal();
+                showToast('添加成功');
+            } catch (error) {
+                showToast('❌ 添加失败: ' + error.message);
+            }
+        }
+
+        // ========== 图片画廊 ==========
+
+        function renderGallery() {
+            const grid = document.getElementById('galleryGrid');
+            const uploadArea = document.getElementById('uploadArea');
+
+            grid.innerHTML = '';
+
+            gallery.forEach((item) => {
+                const div = document.createElement('div');
+                div.className = 'gallery-item';
+                div.innerHTML = `
+                    <img src="${item.url}" alt="图片" loading="lazy" onclick="viewImage('${item.url}')">
+                    <button class="delete-btn" onclick="deleteImage(${item.issueNumber}, event)">×</button>
+                `;
+                grid.appendChild(div);
+            });
+
+            uploadArea.style.display = isAdmin ? 'block' : 'none';
+        }
+
+        async function handleUpload(event) {
+            const files = event.target.files;
+            if (!files.length) return;
+
+            for (const file of Array.from(files)) {
+                if (!file.type.startsWith('image/')) continue;
+
+                try {
+                    showToast('正在压缩...');
+                    const compressed = await compressImage(file);
+
+                    const base64Content = compressed.split(',')[1];
+                    const ext = file.name.split('.').pop() || 'jpg';
+                    const filename = `img_${Date.now()}_${Math.random().toString(36).substr(2, 8)}.${ext}`;
+                    const path = `images/${filename}`;
+
+                    showToast('正在上传...');
+                    const imageUrl = await GitHubAPI.uploadFile(path, base64Content, `Upload ${filename}`);
+
+                    await GitHubAPI.createIssue(`image_${filename}`, imageUrl, [CONFIG.LABEL_GALLERY]);
+
+                    await backgroundSync();
+                    showToast('上传成功');
+                } catch (err) {
+                    showToast('❌ 上传失败: ' + err.message);
+                    console.error('Upload error:', err);
+                }
+            }
+
+            event.target.value = '';
+        }
+
+        async function deleteImage(issueNumber, event) {
+            event.stopPropagation();
+            if (!confirm('确定删除这张图片？')) return;
+
+            try {
+                await GitHubAPI.closeIssue(issueNumber);
+                gallery = gallery.filter(item => item.issueNumber !== issueNumber);
+                saveToLocal();
+                renderGallery();
+                showToast('已删除');
+            } catch (error) {
+                showToast('❌ 删除失败');
+            }
+        }
+
+        function viewImage(src) {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:3000;display:flex;justify-content:center;align-items:center;cursor:zoom-out;';
+            overlay.innerHTML = `<img src="${src}" style="max-width:90%;max-height:90%;border-radius:8px;">`;
+            overlay.onclick = () => overlay.remove();
+            document.body.appendChild(overlay);
+        }
+
+        // ========== 留言板（分页）==========
+
+        function renderComments() {
+            const list = document.getElementById('commentsList');
+            const loadMoreBtn = document.getElementById('loadMoreComments');
+
+            list.innerHTML = '';
+
+            if (comments.length === 0) {
+                list.innerHTML = '<div style="text-align:center;color:#a0aec0;padding:40px;">还没有留言，来说点什么吧~</div>';
+                loadMoreBtn.style.display = 'none';
+                return;
+            }
+
+            const start = 0;
+            const end = (commentsPage + 1) * CONFIG.COMMENTS_PER_PAGE;
+            const displayComments = comments.slice().reverse().slice(start, end);
+
+            displayComments.forEach((comment) => {
+                const item = document.createElement('div');
+                item.className = `comment-item ${isAdmin ? 'editable' : ''}`;
+                item.innerHTML = `
+                    <button class="comment-delete" onclick="deleteComment(${comment.issueNumber})">×</button>
+                    <div class="comment-header">
+                        <span class="comment-author">${escapeHtml(comment.name)}</span>
+                        <span class="comment-time">${formatTime(comment.time)}</span>
+                    </div>
+                    <div class="comment-content">${escapeHtml(comment.text)}</div>
+                `;
+                list.appendChild(item);
+            });
+
+            const hasMore = comments.length > end;
+            loadMoreBtn.style.display = hasMore ? 'block' : 'none';
+        }
+
+        function loadMoreComments() {
+            commentsPage++;
+            renderComments();
+        }
+
+        async function addComment() {
+            const name = document.getElementById('commentName').value.trim();
+            const text = document.getElementById('commentText').value.trim();
+
+            if (!name || !text) {
+                showToast('请填写昵称和留言内容');
+                return;
+            }
+
+            const data = {
+                name: name,
+                text: text,
+                time: Date.now()
+            };
+
+            try {
+                await GitHubAPI.createIssue(
+                    `comment_${Date.now()}`,
+                    JSON.stringify(data),
+                    [CONFIG.LABEL_COMMENTS]
+                );
+
+                await backgroundSync();
+
+                document.getElementById('commentName').value = '';
+                document.getElementById('commentText').value = '';
+                commentsPage = 0;
+                showToast('留言成功');
+            } catch (error) {
+                showToast('❌ 留言失败: ' + error.message);
+            }
+        }
+
+        async function deleteComment(issueNumber) {
+            if (!isAdmin) return;
+            if (!confirm('确定删除这条留言？')) return;
+
+            try {
+                await GitHubAPI.closeIssue(issueNumber);
+                comments = comments.filter(c => c.issueNumber !== issueNumber);
+                saveToLocal();
+                renderComments();
+                showToast('已删除');
+            } catch (error) {
+                showToast('❌ 删除失败');
+            }
+        }
+
+        // ========== 工具函数 ==========
+
+        function renderAll() {
+            renderCards();
+            renderGallery();
+            renderComments();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+
+            if (diff < 60000) return '刚刚';
+            if (diff < 3600000) return `${Math.floor(diff/60000)}分钟前`;
+            if (diff < 86400000) return `${Math.floor(diff/3600000)}小时前`;
+
+            return `${date.getFullYear()}/${date.getMonth()+1}/${date.getDate()}`;
+        }
+
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:#1a202c;color:white;padding:12px 24px;border-radius:12px;z-index:4000;font-size:14px;animation:fadeInUp 0.3s ease;';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 2000);
+        }
+
+        // 事件绑定
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) overlay.classList.remove('active');
+            });
+        });
+
+        const uploadArea = document.getElementById('uploadArea');
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            document.getElementById('fileInput').files = files;
+            handleUpload({ target: { files } });
+        });
+
+        // 启动
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>            opacity: 0;
             pointer-events: none;
         }
 
