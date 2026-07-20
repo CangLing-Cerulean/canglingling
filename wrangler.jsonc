@@ -1,0 +1,32 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cangling",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-07-17",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "canglingling-comments",
+      "database_id": "5c31829b-ca17-4959-8dd3-bdfe10659ad1",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "MEDIA",
+      "id": "b4d21ec8c7e54d309c729f0d0c50918d"
+    }
+  ],
+  "vars": {
+    "COMMENT_MODERATION": "required",
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAD4UUBZ1l0aPQDp-"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

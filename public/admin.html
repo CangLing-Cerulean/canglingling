@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#16243e" />
+    <title>小窝管理 · 沧翎翎的小窝</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/admin.css" />
+    <script type="module" src="/admin.js"></script>
+  </head>
+  <body class="admin-body">
+    <header class="admin-header shell">
+      <a class="brand" href="/">
+        <span class="brand-mark">C</span>
+        <span class="brand-text">
+          <strong>小窝管理室</strong>
+          <small>COMMENT MODERATION</small>
+        </span>
+      </a>
+      <a class="back-link" href="/">← 返回小窝</a>
+    </header>
+
+    <main class="admin-main shell">
+      <section class="admin-intro">
+        <div>
+          <p class="admin-kicker">PRIVATE AREA · 请勿分享管理口令</p>
+          <h1>小窝内容<br />管理台</h1>
+        </div>
+        <form id="token-form" class="token-form">
+          <label for="admin-token">管理员密码</label>
+          <div>
+            <input
+              id="admin-token"
+              name="token"
+              type="password"
+              autocomplete="current-password"
+              placeholder="输入管理员密码"
+              required
+            />
+            <button type="submit">进入管理台</button>
+          </div>
+          <small id="token-message" role="status">登录会话只保存在当前浏览器标签页，关闭后自动清除。</small>
+        </form>
+      </section>
+
+      <section class="media-manager" id="media-manager" hidden>
+        <div class="editor-heading">
+          <div>
+            <p class="admin-kicker">MEDIA &amp; NOTES</p>
+            <h2>图片与笔记上传</h2>
+            <p>文件保存到 Cloudflare Workers KV 免费存储。站内总量限制为 512MB，达到上限只会停止上传。</p>
+            <p class="storage-usage" id="storage-usage">正在读取存储占用……</p>
+          </div>
+        </div>
+
+        <div class="upload-grid">
+          <form class="upload-card" id="carousel-upload-form">
+            <div class="upload-card-heading">
+              <span>01</span>
+              <div><strong>上传轮播图片</strong><small>JPG / PNG / WebP 超过 5MB 自动压缩 · GIF 最大 5MB</small></div>
+            </div>
+            <label>图片标题<input name="title" maxlength="100" placeholder="例如：杭州的一个下午" required /></label>
+            <label>图片说明<textarea name="description" maxlength="400" rows="3" placeholder="可选"></textarea></label>
+            <label class="file-picker">
+              <span>选择图片文件</span>
+              <input name="file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" required />
+            </label>
+            <button type="submit">上传到图集 →</button>
+            <p class="upload-message" id="carousel-upload-message" role="status"></p>
+          </form>
+
+          <form class="upload-card" id="note-upload-form">
+            <div class="upload-card-heading">
+              <span>02</span>
+              <div><strong>上传我的笔记</strong><small>MD / PDF / DOC / DOCX / TXT / RTF / ODT · 最大 10MB</small></div>
+            </div>
+            <label>笔记标题<input name="title" maxlength="100" placeholder="留空则使用文件名" /></label>
+            <label>笔记简介<textarea name="description" maxlength="400" rows="3" placeholder="可选"></textarea></label>
+            <label class="file-picker">
+              <span>选择笔记文件</span>
+              <input
+                name="file"
+                type="file"
+                accept=".md,.markdown,.pdf,.doc,.docx,.txt,.rtf,.odt"
+                required
+              />
+            </label>
+            <button type="submit">上传笔记 →</button>
+            <p class="upload-message" id="note-upload-message" role="status"></p>
+          </form>
+        </div>
+
+        <div class="media-library">
+          <section>
+            <div class="library-heading"><h3>图集文件</h3><button type="button" data-refresh-media="carousel">刷新</button></div>
+            <div class="library-list" id="carousel-admin-list"></div>
+          </section>
+          <section>
+            <div class="library-heading"><h3>笔记文件</h3><button type="button" data-refresh-media="note">刷新</button></div>
+            <div class="library-list" id="notes-admin-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="moderation-panel" id="moderation-panel" hidden>
+        <div class="moderation-title">
+          <p class="admin-kicker">COMMENT MODERATION</p>
+          <h2>访客留言审核</h2>
+        </div>
+        <div class="moderation-toolbar">
+          <div class="status-tabs" role="tablist" aria-label="评论状态">
+            <button class="active" type="button" data-status="pending">待审核</button>
+            <button type="button" data-status="approved">已通过</button>
+            <button type="button" data-status="rejected">已拒绝</button>
+          </div>
+          <button class="refresh-admin" id="refresh-admin" type="button">刷新 ↻</button>
+        </div>
+        <p class="admin-message" id="admin-message" role="status"></p>
+        <div class="moderation-list" id="moderation-list"></div>
+      </section>
+    </main>
+  </body>
+</html>

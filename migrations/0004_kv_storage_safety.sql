@@ -1,0 +1,2 @@
+ALTER TABLE comments
+  ADD COLUMN avatar_size_bytes INTEGER NOT NULL DEFAULT 0;
