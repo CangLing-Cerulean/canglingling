@@ -8,6 +8,7 @@ const state = {
   comments: [],
   replyTo: null,
   widgetId: null,
+  turnstileUnavailable: false,
   config: null,
   siteSettings: null,
   adminToken: sessionStorage.getItem("canglingling_admin_token") || "",
@@ -424,6 +425,21 @@ function renderTurnstileIfReady() {
     sitekey: state.config.turnstileSiteKey,
     theme: "light",
     size: "flexible",
+    callback: () => {
+      state.turnstileUnavailable = false;
+      elements.turnstile.hidden = false;
+    },
+    "error-callback": () => {
+      state.turnstileUnavailable = true;
+      elements.turnstile.hidden = true;
+      setMessage("验证服务暂时不可用，仍可提交，留言会进入人工审核。");
+      return true;
+    },
+    "timeout-callback": () => {
+      state.turnstileUnavailable = true;
+      elements.turnstile.hidden = true;
+      setMessage("验证已超时，仍可提交，留言会进入人工审核。");
+    },
   });
 }
 

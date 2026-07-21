@@ -39,6 +39,10 @@ export function validateModerationAction(value) {
   return ["approve", "reject", "delete"].includes(value) ? value : null;
 }
 
+export function canUseModeratedTurnstileFallback(moderationMode) {
+  return moderationMode !== "disabled";
+}
+
 export const limits = {
   author: AUTHOR_MAX,
   content: CONTENT_MAX,

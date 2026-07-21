@@ -1,4 +1,5 @@
 import {
+  canUseModeratedTurnstileFallback,
   limits,
   normalizeText,
   validateComment,
@@ -368,7 +369,12 @@ async function createComment(request, env) {
     env,
     normalizeText(payload.turnstileToken),
   );
-  if (!turnstile.success) return json({ error: "人机验证失败，请重试" }, 400);
+  const verificationFallback =
+    !turnstile.success &&
+    canUseModeratedTurnstileFallback(env.COMMENT_MODERATION);
+  if (!turnstile.success && !verificationFallback) {
+    return json({ error: "人机验证失败，请重试" }, 400);
+  }
 
   const ipHash = await getIpHash(request, env);
   if (await isRateLimited(env, ipHash)) {
@@ -436,8 +442,11 @@ async function createComment(request, env) {
       ok: true,
       id,
       status,
+      verificationFallback,
       message:
-        status === "pending"
+        verificationFallback
+          ? "验证服务暂时不可用，留言已安全送入人工审核"
+          : status === "pending"
           ? "评论已送到小窝，审核后就会出现啦"
           : "评论发布成功",
     },
